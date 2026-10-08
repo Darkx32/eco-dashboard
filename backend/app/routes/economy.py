@@ -21,7 +21,7 @@ async def agregados(limit: int = Query(20, ge=1, le=100), offset: int = Query(0,
 
 @router.get("/info/{id}")
 async def info(id: int, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
-    data = await ibge_service.get_info_agregado_by_id(id)
+    data = await ibge_service.get_info_agregado_by_id(id, limit)
 
     header = {key: data[key] for key in ["id", "nome", "pesquisa", "assunto", "periodicidade"]}
 

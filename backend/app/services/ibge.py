@@ -14,7 +14,7 @@ class IBGEService:
 
         return response.json()
 
-    async def get_info_agregado_by_id(self, id: int) -> dict:
+    async def get_info_agregado_by_id(self, id: int, classificacao_limit: int = 20) -> dict:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{self.IBGE_URL}/{id}/metadados")
         response.raise_for_status()
@@ -28,5 +28,9 @@ class IBGEService:
             except:
                 print(f"Value not found on transform {variavel["unidade"]}")
             del variavel["sumarizacao"]
+
+        for classificacao in data["classificacoes"]:
+            classificacao["categorias"] = classificacao["categorias"][:classificacao_limit]
+            del classificacao["sumarizacao"]
 
         return data
