@@ -1,0 +1,15 @@
+\set ON_ERROR_STOP on
+-- Exclusivamente local; a conexão inicial é definida pelo executor PowerShell.
+SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='bahia_economia_teste_modelagem') AS existe \gset
+\if :existe
+  \echo Banco de teste já existe. Nada foi alterado. Use o roteiro do README para inspecioná-lo.
+  \quit
+\endif
+CREATE DATABASE bahia_economia_teste_modelagem;
+\connect bahia_economia_teste_modelagem
+\ir ../sql/01_estrutura.sql
+\ir ../sql/02_catalogos.sql
+\ir ../sql/03_dados_reais.sql
+\ir ../sql/04_fixtures_teste.sql
+\ir ../sql/05_consultas.sql
+\ir ../sql/06_testes.sql
