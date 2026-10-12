@@ -1,50 +1,97 @@
-# Bahia Economia — Modelagem de Dados
+# Bahia Economia — Banco de Dados
 
-Entrega de Paulo Henrique. Comece por **docs/explicacao_para_apresentar.md** e abra **docs/der.png** para visualizar as relações.
+Estrutura PostgreSQL para armazenar e consultar indicadores econômicos dos municípios da Bahia. Os dados são obtidos pela API de Agregados do IBGE e organizados por município, indicador e ano.
 
-## O que foi entregue
+## Estrutura
 
-- `docs/modelagem.md`: modelo conceitual, lógico, físico e justificativas.
-- `docs/dicionario.md`: todos os campos, tipos, chaves e regras.
-- `docs/der.mmd`: DER editável; `der.svg`, `der.png` e `der.html`: visualização local.
-- `docs/fontes_e_cobertura.md`: códigos, URLs, anos, unidades e lacuna de PIB per capita.
-- `docs/integracao.md`: contrato para Python/FastAPI, SQLAlchemy/Psycopg e React.
-- `sql/01_estrutura.sql` a `07_limpar_fixtures.sql`: estrutura, catálogos, dados reais, fixtures, consultas, testes e limpeza opcional.
-- `evidencias/`: JSONs públicos consultados, hashes, URLs e relatório de validação. Logs específicos da máquina não são versionados.
+O schema `economia` contém sete tabelas:
 
-Sete tabelas, duas views e dois índices adicionais. A chave da observação é município + indicador + ano + tipo. `v_dashboard` filtra apenas dados reais. Não há implementações completas de back-end ou front-end nesta entrega.
+| Tabela | Finalidade |
+|---|---|
+| `municipio` | Códigos e nomes dos municípios baianos |
+| `unidade` | Unidades de medida dos indicadores |
+| `fonte` | Identificação da fonte dos dados |
+| `indicador` | Indicadores e seus códigos no IBGE |
+| `indicador_periodo` | Anos consultáveis por indicador |
+| `coleta` | Origem, data e referência de cada coleta |
+| `observacao` | Valores por município, indicador, ano e tipo de dado |
 
-## Execução no Windows, PostgreSQL 18 / porta 5432
+A view `v_dashboard` reúne os dados reais para consulta. A view `v_ultimo_disponivel` retorna o último ano com valor disponível para cada município e indicador.
 
-Abra um PowerShell interativo na raiz do repositório e execute:
+Os registros fictícios usados nos testes ficam separados dos dados reais. Valores indisponíveis são armazenados como `NULL`, acompanhados do estado informado pela fonte.
+
+## Documentação
+
+- [Modelagem conceitual, lógica e física](docs/modelagem.md)
+- [Dicionário de dados](docs/dicionario.md)
+- [Diagrama de relacionamentos](docs/der.png)
+- [Diagrama editável em Mermaid](docs/der.mmd)
+- [Fontes, indicadores e cobertura](docs/fontes_e_cobertura.md)
+- [Integração com o back-end](docs/integracao.md)
+- [Relatório de testes](evidencias/resultado_validacao.md)
+
+## Instalação
+
+Requisitos: PostgreSQL 18 e acesso por pgAdmin ou psql. Os scripts utilizam um banco de testes cujo nome começa com `bahia_economia_teste`.
+
+### PowerShell
+
+Na raiz do repositório, execute:
 
 ```powershell
 & '.\database\scripts\executar_windows.ps1'
 ```
 
-Digite sua senha **somente no prompt oculto do psql**, sem salvá-la em arquivos. O executor conecta apenas em 127.0.0.1:5432, verifica a existência de `bahia_economia_teste_modelagem` e, se existir, sai sem modificá-lo. Se não existir, cria esse banco e executa 01–06. O usuário precisa ter permissão CREATEDB. Nenhuma conexão é feita em `bahia_economia` e nenhum DROP é executado. Não altere a política global do PowerShell; se ela bloquear scripts, use o pgAdmin abaixo.
+O script está configurado para uma instalação local do PostgreSQL 18, no endereço `127.0.0.1`, porta `5432`, com o usuário `postgres`. O psql é localizado em `C:\Program Files\PostgreSQL\18\bin`. Ajuste essas configurações conforme o ambiente. A senha é solicitada durante a conexão e não fica armazenada no script.
 
-O arquivo 01 é executado **uma única vez**, exige nome de banco iniciado por `bahia_economia_teste` e falha se o schema `economia` já existir. Essa proteção é intencional; implantação real exige revisão do responsável pelo banco. 02, 03 e 04 são repetíveis, preservam conflitos sem atualizar valores. 05 é somente leitura. 06 utiliza transação com ROLLBACK e depende de 02–04 num banco dedicado contendo o snapshot deste pacote. 07 remove exclusivamente o lote `fixture_modelagem_v1`, marcado como teste, e pode ser repetido.
+O banco `bahia_economia_teste_modelagem` será criado se ainda não existir. O usuário precisa ter permissão `CREATEDB`. Se o banco já existir, o script encerra sem alterações; nesse caso, confira sua estrutura pelo pgAdmin antes de executar qualquer SQL.
 
-## Execução no pgAdmin
+### pgAdmin
 
-1. Conecte ao servidor local já instalado, host 127.0.0.1, porta 5432. No Query Tool do banco `postgres`, execute `SELECT datname FROM pg_database ORDER BY datname;`.
-2. Se `bahia_economia_teste_modelagem` não existir, crie-o pelo menu Databases → Create → Database ou rode `CREATE DATABASE bahia_economia_teste_modelagem;` isoladamente, sem BEGIN. Se existir, não o modifique: escolha outro nome exclusivo começando por `bahia_economia_teste_` e confira antes de criar.
-3. Abra um novo Query Tool no banco recém-criado. Confira `SELECT current_database(), version();`.
-4. Abra e execute, um por vez, os arquivos SQL 01, 02, 03 e 04; depois 05 e 06. Pare em qualquer erro. O arquivo `executar.psql` contém comandos exclusivos do psql e não deve ser aberto como SQL no pgAdmin.
-5. O painel Messages de 06 deve mostrar os avisos PASSOU, sem ERROR. Veja as tabelas e views em Schemas → economia.
-6. Opcionalmente execute 07. Para repetir 06 depois da limpeza, recarregue 04. Os 308 registros reais devem permanecer.
+1. Conecte ao servidor PostgreSQL local e confira os bancos existentes.
+2. Para uma instalação nova, crie `bahia_economia_teste_modelagem` ou outro banco exclusivo com o prefixo `bahia_economia_teste_`.
+3. Abra o **Query Tool** do banco escolhido e confirme a conexão com `SELECT current_database();`.
+4. Execute os arquivos da pasta `sql` na ordem abaixo. Interrompa a sequência se ocorrer algum erro.
 
-Nunca execute scripts em um banco de outro projeto. Para repetir uma carga parcialmente concluída, primeiro inspecione o estado: cada arquivo usa sua própria transação; 01 não deve ser repetido num schema existente.
+| Ordem | Arquivo | Função |
+|---|---|---|
+| 1 | `01_estrutura.sql` | Criar o schema, tabelas, restrições, índices e views |
+| 2 | `02_catalogos.sql` | Cadastrar municípios, indicadores, unidades e períodos |
+| 3 | `03_dados_reais.sql` | Carregar os dados consultados no IBGE |
+| 4 | `04_fixtures_teste.sql` | Inserir registros fictícios para os testes |
+| 5 | `05_consultas.sql` | Consultar séries históricas e comparar municípios |
+| 6 | `06_testes.sql` | Verificar as regras de integridade |
 
-## Validação realizada
+Execute `01_estrutura.sql` apenas quando o schema `economia` ainda não existir. Os arquivos 02, 03 e 04 podem ser repetidos: registros já cadastrados são preservados, sem atualização dos valores.
 
-A estrutura foi validada no PostgreSQL 18.6, Windows x86_64, primeiro em uma instância local isolada na porta 55439 e depois no banco existente `bahia_economia_teste_modelagem`, em `127.0.0.1:5432`, em 12/10/2026. A instalação no banco existente criou sete tabelas e duas views sem apagar ou recriar o banco. Foram carregados 417 municípios, 308 observações reais e quatro fixtures; os testes de integridade passaram.
+O arquivo `07_limpar_fixtures.sql` é opcional e remove apenas o lote fictício `fixture_modelagem_v1`. Para executar os testes novamente após a limpeza, recarregue o arquivo 04.
 
-O relatório está em `evidencias/resultado_validacao.md`. Logs locais e arquivos internos do PostgreSQL não integram o repositório. A instância isolada foi encerrada após os testes. Senhas não foram salvas nos arquivos.
+Os arquivos `.psql` da pasta `scripts` são exclusivos do psql e não devem ser executados no Query Tool.
 
-## Limites e decisões pendentes
+## Consulta de exemplo
 
-PIB per capita municipal não foi encontrado nas tabelas de agregados verificadas. A equipe deve decidir por uma fonte complementar oficial e validar seu esquema antes de ampliar o modelo. Os sete indicadores confirmados usam a tabela 5938; dados numéricos de PIB chegam a 2023, componentes em Guanambi chegam a 2021. Os anos 2022/2023 indisponíveis foram preservados como NULL com estado.
+Série histórica do PIB de Guanambi:
 
-A importação futura, migrações, autenticação/permissões da aplicação, rotas finais e interface são trabalhos de integração da equipe. Os exemplos de integração não foram executados como aplicação FastAPI. O repositório contém a pasta `database` e as regras de exclusão; não inclui o cluster de testes nem credenciais.
+```sql
+SELECT ano, valor, unidade, estado
+FROM economia.v_dashboard
+WHERE municipio_codigo = '2911709'
+  AND indicador_codigo = 'pib'
+ORDER BY ano;
+```
+
+As tabelas ficam em **Schemas → economia → Tables** e as views em **Schemas → economia → Views**.
+
+## Testes
+
+A estrutura foi validada no PostgreSQL 18.6 em 12/10/2026, com 417 municípios cadastrados, 308 observações do IBGE e quatro registros fictícios. Os testes verificam duplicidade, chaves estrangeiras, compatibilidade de unidade e fonte, tratamento de ausência e separação dos dados de teste.
+
+O arquivo `06_testes.sql` executa as verificações em uma transação encerrada com `ROLLBACK`. Ele depende dos catálogos e dados dos arquivos 02, 03 e 04 em um banco dedicado a esta carga. As mensagens `PASSOU` indicam as verificações concluídas; qualquer erro deve ser investigado antes de continuar.
+
+## Cobertura dos dados
+
+Os sete indicadores cadastrados pertencem à tabela 5938 do IBGE. Para Guanambi, a série de PIB contém valores de 2002 a 2023. Os indicadores de impostos e valor adicionado consultados possuem valores até 2021; as ausências de 2022 e 2023 foram mantidas no banco.
+
+As tabelas de agregados verificadas não oferecem PIB per capita no nível municipal. A inclusão desse indicador depende da definição de uma fonte oficial complementar e da validação de seus campos e metodologia.
+
+A conexão com o back-end, as migrações e a rotina de atualização dos dados devem seguir as regras descritas em [integração](docs/integracao.md).
