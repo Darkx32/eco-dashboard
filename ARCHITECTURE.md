@@ -127,25 +127,10 @@ routers/
 
 O objetivo é evitar concentrar todas as rotas em `main.py`.
 
-### `app/schemas/`
-
-Contém os schemas usados para entrada e saída de dados da API,
-normalmente definidos com Pydantic.
-
-Exemplos:
-
--   payloads de requisições;
--   respostas da API;
--   validação de dados.
-
-### `app/models/`
-
-Contém os modelos relacionados à persistência dos dados, caso o projeto
-utilize banco de dados.
-```
 
 ## Comunicação entre frontend e backend
 
+```
 O React não acessa diretamente banco de dados ou regras internas do
 backend.
 
@@ -221,19 +206,6 @@ uv add nome-da-dependencia
 ```
 
 O `.venv` não deve ser versionado no Git.
-
-## Princípios da arquitetura
-
-A arquitetura deve permanecer simples e crescer junto com o projeto.
-
-1.  **Frontend cuida da interface.**
-2.  **Backend cuida dos dados e regras de negócio.**
-3.  **Routers recebem e respondem requisições HTTP.**
-4.  **Services concentram regras de negócio quando elas surgirem.**
-5.  **Schemas definem e validam os dados da API.**
-6.  **Models representam a camada de persistência quando necessária.**
-7.  **Novas abstrações só devem ser adicionadas quando resolverem uma
-    necessidade real.**
 
 ## Evolução
 
