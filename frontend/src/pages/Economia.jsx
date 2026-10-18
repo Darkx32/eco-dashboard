@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -10,45 +10,58 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { ipcaMensal, pibPerCapitaPorAno, pibPorAno } from '../data/mock'
+import { buscarSerie } from '../services/api'
 
-const COR = '#0ea5e9' 
+const COR = '#0ea5e9'
 const ABAS = ['Visão Geral', 'Indicadores', 'Dados', 'Gráficos', 'Relatórios']
-const CARD = 'bg-surface rounded-xl shadow-card border border-slate-100 p-6' 
+const CARD = 'bg-surface rounded-xl shadow-card border border-slate-100 p-6'
 const EIXO = { fill: '#64748b', fontSize: 12 }
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const trilhoes = (n, casas = 1) => `R$ ${num(n / 1e12, casas)} tri`
-const reaisCompleto = (n) => `R$ ${num(n, 0)}`
-
 
 
 const num = (n, casas = 2) =>
   n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
 const brl = (n) => `R$ ${num(n, 0)}`
-const mesAno = (p) => {
-  const [ano, mes] = p.split('-')
-  return `${MESES[Number(mes) - 1]}/${ano.slice(2)}`
-}
+const trilhoes = (n, casas = 1) => `R$ ${num(n / 1e12, casas)} tri`
+
+
+const mesAno = (p) => `${MESES[Number(p.slice(4, 6)) - 1]}/${p.slice(2, 4)}`
+
+
 const crescimento = (serie) => {
+  if (serie.length < 2) return null
   const [anterior, atual] = serie.slice(-2)
   return (atual.valor / anterior.valor - 1) * 100
 }
-const acumulado = (serie) => (serie.reduce((t, x) => t * (1 + x.valor / 100), 1) - 1) * 100
 
 
-const pibAtual = pibPorAno.at(-1)
-const perCapitaAtual = pibPerCapitaPorAno.at(-1)
-const ipcaAtual = ipcaMensal.at(-1)
-const ipca12m = acumulado(ipcaMensal)
-const ipcaNoAno = acumulado(ipcaMensal.filter((i) => i.periodo.startsWith(ipcaAtual.periodo.slice(0, 4))))
+const intervalo = (serie) =>
+  serie.length > 0 ? `, ${serie[0].periodo} a ${serie.at(-1).periodo}` : ''
 
-const LINHAS = [
-  { nome: 'PIB (valores correntes)', valor: trilhoes(pibAtual.valor), ref: pibAtual.periodo },
-  { nome: 'PIB per capita (valores correntes)', valor: brl(perCapitaAtual.valor), ref: perCapitaAtual.periodo },
-  { nome: 'IPCA – variação mensal', valor: `${num(ipcaAtual.valor)}%`, ref: mesAno(ipcaAtual.periodo) },
-  { nome: 'IPCA – acumulado no ano', valor: `${num(ipcaNoAno)}%`, ref: mesAno(ipcaAtual.periodo) },
-  { nome: 'IPCA – acumulado em 12 meses', valor: `${num(ipca12m)}%`, ref: mesAno(ipcaAtual.periodo) },
-]
+
+function useSerie(agregado, variavel) {
+  const [estado, setEstado] = useState({ dados: [], carregando: true, erro: null })
+
+  useEffect(() => {
+    let ativo = true
+    buscarSerie(agregado, variavel)
+      .then((dados) => ativo && setEstado({ dados, carregando: false, erro: null }))
+      .catch((e) => ativo && setEstado({ dados: [], carregando: false, erro: e.message }))
+    return () => {
+      ativo = false
+    }
+  }, [agregado, variavel])
+
+  return estado
+}
+
+
+const statusDe = (s) => {
+  if (s.carregando) return 'Carregando...'
+  if (s.erro) return 'Não foi possível carregar os dados. Tente novamente em instantes.'
+  if (s.dados.length === 0) return 'Sem dados disponíveis.'
+  return null
+}
 
 
 function Variacao({ valor }) {
@@ -59,7 +72,7 @@ function Variacao({ valor }) {
   )
 }
 
-function Kpi({ icone, titulo, valor, detalhe, variacao }) {
+function Kpi({ icone, titulo, status, valor, detalhe, variacao }) {
   return (
     <div className={`${CARD} flex items-center gap-4`}>
       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-2xl">
@@ -67,37 +80,57 @@ function Kpi({ icone, titulo, valor, detalhe, variacao }) {
       </div>
       <div className="min-w-0">
         <p className="text-sm text-slate-500">{titulo}</p>
-        <p className="text-2xl font-bold text-slate-800">{valor}</p>
-        <p className="text-xs text-slate-500">
-          {detalhe} {variacao !== undefined && <Variacao valor={variacao} />}
-        </p>
+        {status ? (
+          <p className="mt-1 text-sm text-slate-500">{status}</p>
+        ) : (
+          <>
+            <p className="text-2xl font-bold text-slate-800">{valor}</p>
+            <p className="text-xs text-slate-500">
+              {detalhe} {variacao != null && <Variacao valor={variacao} />}
+            </p>
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-
-function Grafico({ titulo, subtitulo, className = '', children }) {
+function Grafico({ titulo, subtitulo, status, className = '', children }) {
   return (
     <div className={`${CARD} ${className}`}>
       <h2 className="text-lg font-semibold text-slate-800">{titulo}</h2>
       <p className="mt-1 text-sm text-slate-500">{subtitulo}</p>
       <div className="mt-4 h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          {children}
-        </ResponsiveContainer>
+        {status ? (
+          <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
+            {status}
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            {children}
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   )
 }
 
-function GraficoPib() {
+function GraficoPib({ serie }) {
   return (
-    <Grafico titulo="PIB do Brasil (R$ trilhões)" subtitulo="Valores correntes, 2018 a 2023">
-      <BarChart data={pibPorAno}>
+    <Grafico
+      titulo="PIB do Brasil (R$ trilhões)"
+      subtitulo={`Valores correntes${intervalo(serie.dados)}`}
+      status={statusDe(serie)}
+    >
+      <BarChart data={serie.dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
-        <YAxis tick={EIXO} domain={[0, 'auto']} allowDecimals={false} tickFormatter={(v) => num(v / 1e12, 0)} />
+        <YAxis
+          tick={EIXO}
+          domain={[0, 'auto']}
+          allowDecimals={false}
+          tickFormatter={(v) => num(v / 1e12, 0)}
+        />
         <Tooltip formatter={(v) => [brl(v), 'PIB']} />
         <Bar dataKey="valor" fill={COR} radius={[4, 4, 0, 0]} />
       </BarChart>
@@ -105,10 +138,14 @@ function GraficoPib() {
   )
 }
 
-function GraficoPibPerCapita() {
+function GraficoPibPerCapita({ serie }) {
   return (
-    <Grafico titulo="PIB per capita do Brasil (R$)" subtitulo="Valores correntes, 2018 a 2023">
-      <LineChart data={pibPerCapitaPorAno}>
+    <Grafico
+      titulo="PIB per capita do Brasil (R$)"
+      subtitulo={`Valores correntes${intervalo(serie.dados)}`}
+      status={statusDe(serie)}
+    >
+      <LineChart data={serie.dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
         <YAxis tick={EIXO} width={70} domain={[30000, 'auto']} tickFormatter={(v) => num(v, 0)} />
@@ -119,21 +156,32 @@ function GraficoPibPerCapita() {
   )
 }
 
-function GraficoIpca({ className }) {
+function GraficoIpca({ serie, className }) {
+  const dados = serie.dados
+  const sub =
+    dados.length > 0
+      ? `${mesAno(dados[0].periodo)} a ${mesAno(dados.at(-1).periodo)}`
+      : 'Acumulado em 12 meses'
+
   return (
-    <Grafico titulo="IPCA – variação mensal (%)" subtitulo="Últimos 12 meses" className={className}>
-      <LineChart data={ipcaMensal}>
+    <Grafico
+      titulo="IPCA – acumulado em 12 meses (%)"
+      subtitulo={sub}
+      status={statusDe(serie)}
+      className={className}
+    >
+      <LineChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} tickFormatter={mesAno} />
         <YAxis tick={EIXO} width={55} tickFormatter={(v) => `${num(v, 1)}%`} />
-        <Tooltip labelFormatter={mesAno} formatter={(v) => [`${num(v)}%`, 'IPCA']} />
+        <Tooltip labelFormatter={mesAno} formatter={(v) => [`${num(v)}%`, 'IPCA 12 meses']} />
         <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot />
       </LineChart>
     </Grafico>
   )
 }
 
-function TabelaIndicadores() {
+function TabelaIndicadores({ linhas }) {
   return (
     <div className={CARD}>
       <h2 className="text-lg font-semibold text-slate-800">Principais indicadores</h2>
@@ -147,7 +195,7 @@ function TabelaIndicadores() {
             </tr>
           </thead>
           <tbody>
-            {LINHAS.map((l) => (
+            {linhas.map((l) => (
               <tr key={l.nome} className="border-b border-slate-100 last:border-0">
                 <td className="py-3 text-slate-600">{l.nome}</td>
                 <td className="py-3 font-medium text-slate-800">{l.valor}</td>
@@ -161,18 +209,45 @@ function TabelaIndicadores() {
   )
 }
 
-
 function EmBreve({ aba }) {
   return (
     <div className={`${CARD} py-16 text-center`}>
       <p className="text-lg font-semibold text-slate-800">{aba}</p>
-      <p className="mt-2 text-sm text-slate-500">To fazendo, te acalma.</p>
+      <p className="mt-2 text-sm text-slate-500">PH VIADO.</p>
     </div>
   )
 }
 
 export default function Economia() {
   const [aba, setAba] = useState('Visão Geral')
+
+ 
+  const pib = useSerie(6784, 9808) 
+  const perCapita = useSerie(6784, 9812)
+  const ipca = useSerie(7060, 2265) 
+
+  
+  const pibAtual = pib.dados.at(-1)
+  const perCapitaAtual = perCapita.dados.at(-1)
+  const ipcaAtual = ipca.dados.at(-1)
+
+  const linhas = [
+    {
+      nome: 'PIB (valores correntes)',
+      valor: pibAtual ? trilhoes(pibAtual.valor) : statusDe(pib),
+      ref: pibAtual?.periodo,
+    },
+    {
+      nome: 'PIB per capita (valores correntes)',
+      valor: perCapitaAtual ? brl(perCapitaAtual.valor) : statusDe(perCapita),
+      ref: perCapitaAtual?.periodo,
+    },
+    {
+      nome: 'IPCA – acumulado em 12 meses',
+      valor: ipcaAtual ? `${num(ipcaAtual.valor)}%` : statusDe(ipca),
+      ref: ipcaAtual && mesAno(ipcaAtual.periodo),
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-background font-sans">
@@ -181,10 +256,9 @@ export default function Economia() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Economia</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Indicadores econômicos do Brasil · dados de exemplo
+              Indicadores econômicos do Brasil · fonte: IBGE
             </p>
           </div>
-          
         </div>
 
         <div className="border-b border-slate-200">
@@ -214,43 +288,46 @@ export default function Economia() {
               <Kpi
                 icone="📊"
                 titulo="PIB do Brasil"
-                valor={trilhoes(pibAtual.valor)}
-                detalhe={pibAtual.periodo}
-                variacao={crescimento(pibPorAno)}
+                status={statusDe(pib)}
+                valor={pibAtual && trilhoes(pibAtual.valor)}
+                detalhe={pibAtual && `${pibAtual.periodo} · nominal`}
+                variacao={crescimento(pib.dados)}
               />
               <Kpi
                 icone="💰"
                 titulo="PIB per capita do Brasil"
-                valor={brl(perCapitaAtual.valor)}
-                detalhe={perCapitaAtual.periodo}
-                variacao={crescimento(pibPerCapitaPorAno)}
+                status={statusDe(perCapita)}
+                valor={perCapitaAtual && brl(perCapitaAtual.valor)}
+                detalhe={perCapitaAtual && `${perCapitaAtual.periodo} · nominal`}
+                variacao={crescimento(perCapita.dados)}
               />
               <Kpi
                 icone="🛒"
                 titulo="IPCA acumulado em 12 meses"
-                valor={`${num(ipca12m)}%`}
-                detalhe={mesAno(ipcaAtual.periodo)}
+                status={statusDe(ipca)}
+                valor={ipcaAtual && `${num(ipcaAtual.valor)}%`}
+                detalhe={ipcaAtual && mesAno(ipcaAtual.periodo)}
               />
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
-              <GraficoPib />
-              <TabelaIndicadores />
+              <GraficoPib serie={pib} />
+              <TabelaIndicadores linhas={linhas} />
             </div>
           </>
         )}
 
         {aba === 'Indicadores' && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <GraficoIpca />
-            <TabelaIndicadores />
+            <GraficoIpca serie={ipca} />
+            <TabelaIndicadores linhas={linhas} />
           </div>
         )}
 
         {aba === 'Gráficos' && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <GraficoPib />
-            <GraficoPibPerCapita />
-            <GraficoIpca className="lg:col-span-2" />
+            <GraficoPib serie={pib} />
+            <GraficoPibPerCapita serie={perCapita} />
+            <GraficoIpca serie={ipca} className="lg:col-span-2" />
           </div>
         )}
 
