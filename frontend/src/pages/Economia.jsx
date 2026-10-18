@@ -17,6 +17,9 @@ const ABAS = ['Visão Geral', 'Indicadores', 'Dados', 'Gráficos', 'Relatórios'
 const CARD = 'bg-surface rounded-xl shadow-card border border-slate-100 p-6' 
 const EIXO = { fill: '#64748b', fontSize: 12 }
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const trilhoes = (n, casas = 1) => `R$ ${num(n / 1e12, casas)} tri`
+const reaisCompleto = (n) => `R$ ${num(n, 0)}`
+
 
 
 const num = (n, casas = 2) =>
@@ -40,7 +43,7 @@ const ipca12m = acumulado(ipcaMensal)
 const ipcaNoAno = acumulado(ipcaMensal.filter((i) => i.periodo.startsWith(ipcaAtual.periodo.slice(0, 4))))
 
 const LINHAS = [
-  { nome: 'PIB (valores correntes)', valor: `R$ ${num(pibAtual.valor)} tri`, ref: pibAtual.periodo },
+  { nome: 'PIB (valores correntes)', valor: trilhoes(pibAtual.valor), ref: pibAtual.periodo },
   { nome: 'PIB per capita (valores correntes)', valor: brl(perCapitaAtual.valor), ref: perCapitaAtual.periodo },
   { nome: 'IPCA – variação mensal', valor: `${num(ipcaAtual.valor)}%`, ref: mesAno(ipcaAtual.periodo) },
   { nome: 'IPCA – acumulado no ano', valor: `${num(ipcaNoAno)}%`, ref: mesAno(ipcaAtual.periodo) },
@@ -94,8 +97,8 @@ function GraficoPib() {
       <BarChart data={pibPorAno}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
-        <YAxis tick={EIXO} domain={[0, 'auto']} allowDecimals={false} tickFormatter={(v) => num(v, 0)} />
-        <Tooltip formatter={(v) => [`R$ ${num(v)} tri`, 'PIB']} />
+        <YAxis tick={EIXO} domain={[0, 'auto']} allowDecimals={false} tickFormatter={(v) => num(v / 1e12, 0)} />
+        <Tooltip formatter={(v) => [brl(v), 'PIB']} />
         <Bar dataKey="valor" fill={COR} radius={[4, 4, 0, 0]} />
       </BarChart>
     </Grafico>
@@ -211,7 +214,7 @@ export default function Economia() {
               <Kpi
                 icone="📊"
                 titulo="PIB do Brasil"
-                valor={`R$ ${num(pibAtual.valor, 1)} tri`}
+                valor={trilhoes(pibAtual.valor)}
                 detalhe={pibAtual.periodo}
                 variacao={crescimento(pibPorAno)}
               />

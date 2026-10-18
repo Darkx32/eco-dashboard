@@ -1,11 +1,14 @@
-import { useEffect } from 'react'
-import Economia from './pages/Economia'
-import { buscarSerie } from './services/api'
+export async function buscarSerie(agregadoId, variavelId) {
+  const resp = await fetch(
+    `/economy/values?agregados_id=${agregadoId}&variavel_id=${variavelId}`
+  )
+  if (!resp.ok) throw new Error(`Erro ${resp.status} ao buscar dados`)
 
-export default function App() {
-  useEffect(() => {
-    buscarSerie(7060, 63).then(console.log).catch(console.error)
-  }, [])
+  const dados = await resp.json()
+  const bloco = dados.resultados?.[0] ?? {}
 
-  return <Economia />
+  return Object.entries(bloco).map(([periodo, valor]) => ({
+    periodo,
+    valor: Number(valor),
+  }))
 }
