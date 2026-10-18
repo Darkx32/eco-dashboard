@@ -15,3 +15,21 @@ frontend/dist/
 
 # Environment
 .env
+# Modelagem: arquivos locais que não integram a entrega.
+/.pg_bahia_teste*/
+/Bahia_Economia_Modelagem.zip
+/database/docs/*.txt
+/database/evidencias/*.txt
+/database/evidencias/*.log
+/database/evidencias/*_resultado.json
+/database/scripts/abrir_instalacao_local_5432.ps1
+/database/scripts/instalar_no_banco_existente_5432.psql
+
+# Credenciais e temporários.
+.env.*
+!.env.example
+.pgpass
+pgpass.conf
+*.key
+*.pem
+*.tmp

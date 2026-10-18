@@ -1,0 +1,57 @@
+erDiagram
+    fonte ||--o{ indicador : "publica"
+    unidade ||--o{ indicador : "mede"
+    indicador ||--o{ indicador_periodo : "possui"
+    fonte ||--o{ coleta : "origina"
+    municipio ||--o{ observacao : "possui"
+    indicador_periodo ||--o{ observacao : "contextualiza"
+    indicador ||--o{ observacao : "define unidade e fonte"
+    coleta ||--o{ observacao : "rastreia"
+    municipio {
+        varchar codigo
+        text nome
+    }
+    unidade {
+        text codigo
+        text nome
+    }
+    fonte {
+        text codigo
+        text nome
+        text url_documentacao
+    }
+    indicador {
+        text codigo
+        text nome
+        text fonte_codigo
+        integer agregado
+        integer variavel
+        text unidade_codigo
+        text periodicidade
+        text nivel
+    }
+    indicador_periodo {
+        text indicador_codigo
+        smallint ano
+    }
+    coleta {
+        text codigo
+        text fonte_codigo
+        text tipo
+        text url
+        timestamptz coletado_em
+        varchar sha256
+        text arquivo_evidencia
+    }
+    observacao {
+        varchar municipio_codigo
+        text indicador_codigo
+        smallint ano
+        text tipo
+        numeric valor
+        text estado
+        text valor_original
+        text unidade_codigo
+        text fonte_codigo
+        text coleta_codigo
+    }

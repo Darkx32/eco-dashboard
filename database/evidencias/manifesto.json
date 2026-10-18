@@ -1,0 +1,50 @@
+[
+  {
+    "arquivo": "5938_metadados.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/5938/metadados",
+    "consultado_em": "2026-10-12T03:05:55.211551+00:00",
+    "sha256": "095d618c940e99bf0bae617cb1e5b081da2394fa1dbd16c00cd44f805cdb35a4"
+  },
+  {
+    "arquivo": "5938_periodos.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos",
+    "consultado_em": "2026-10-12T03:05:55.328041+00:00",
+    "sha256": "bfa2b3bb4410fc81f5d6509401f889572f75d578f3ea16750a20f7c43e060381"
+  },
+  {
+    "arquivo": "catalogo_agregados.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados",
+    "consultado_em": "2026-10-12T03:05:55.570891+00:00",
+    "sha256": "ebb57c2fd876eebcf543edca6eac1c99f6aca5b0c99ac1f5dc4ec942beb96ff2"
+  },
+  {
+    "arquivo": "6784_metadados.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/6784/metadados",
+    "consultado_em": "2026-10-12T03:05:55.722711+00:00",
+    "sha256": "ee8ae3e3393bff19555537614a1c0e6a85ec289ee2cf05bc8ad2de14c28a8db4"
+  },
+  {
+    "arquivo": "1193_metadados.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/1193/metadados",
+    "consultado_em": "2026-10-12T03:05:55.856519+00:00",
+    "sha256": "36d54c05ff63fe79d537d15c28771e1d06f7377a5cb8d84b22e5238521c2281b"
+  },
+  {
+    "arquivo": "1194_metadados.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/1194/metadados",
+    "consultado_em": "2026-10-12T03:05:56.016545+00:00",
+    "sha256": "d1077073523255271eb2a9f6b11f1e95e71944b0eea2e72e7592c5355757e3b3"
+  },
+  {
+    "arquivo": "municipios_bahia.json",
+    "url": "https://servicodados.ibge.gov.br/api/v1/localidades/estados/29/municipios",
+    "consultado_em": "2026-10-12T03:05:56.162823+00:00",
+    "sha256": "ee2524f732a80d234f129b2e26a90f9bc080a52844a01e5359e789c613d7ee4f"
+  },
+  {
+    "arquivo": "series_reais.json",
+    "url": "https://servicodados.ibge.gov.br/api/v3/agregados/5938/periodos/2002-2023/variaveis/37%7C543%7C498%7C513%7C517%7C6575%7C525?localidades=N6%5B2911709,2927408%5D",
+    "consultado_em": "2026-10-12T03:05:56.402612+00:00",
+    "sha256": "21c420f3c625f8abc0d6c245203702e985d7da4f3a7bdc6a15844269d1661f89"
+  }
+]
