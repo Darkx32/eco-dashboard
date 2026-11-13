@@ -1,0 +1,227 @@
+﻿.economia {
+  --economia-papel: #f5f3ed;
+  --economia-tinta: #252923;
+  --economia-eixo: #64685f;
+  --economia-grade: #d6d7cc;
+  --economia-destaque: #a0442b;
+  --economia-realce: #e8e5da;
+  --economia-alta: #31634c;
+  --economia-baixa: #a0442b;
+  min-height: 100vh;
+  background: var(--economia-papel);
+  color: var(--economia-tinta);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color-scheme: light;
+}
+
+.economia[data-theme='dark'] {
+  --economia-papel: #1c201d;
+  --economia-tinta: #eeece3;
+  --economia-eixo: #b3b7ab;
+  --economia-grade: #42493f;
+  --economia-destaque: #e29a7f;
+  --economia-realce: #30372e;
+  --economia-alta: #91c2a4;
+  --economia-baixa: #e7a18b;
+  color-scheme: dark;
+}
+
+.economia * { box-sizing: border-box; }
+.economia button, .economia a { -webkit-tap-highlight-color: transparent; }
+.economia button { cursor: pointer; font: inherit; }
+.economia :focus-visible { outline: 2px solid var(--economia-destaque); outline-offset: 5px; }
+.economia ::selection { background: var(--economia-destaque); color: var(--economia-papel); }
+
+.economia-container { max-width: 1240px; padding: 0 44px; margin: 0 auto; }
+.economia-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 88px; border-bottom: 1px solid var(--economia-tinta); }
+.economia-expediente { display: flex; align-items: center; gap: 28px; }
+.economia-marca { font-size: 18px; font-weight: 650; letter-spacing: -.6px; }
+.economia-marca > span { color: var(--economia-destaque); padding: 0 3px; }
+.economia-edicao { border-left: 1px solid var(--economia-grade); padding-left: 28px; color: var(--economia-eixo); font-size: 12px; }
+.economia-tema { display: inline-flex; flex-shrink: 0; align-items: center; gap: 9px; padding: 10px 0 10px 12px; border: 0; background: transparent; color: var(--economia-tinta); font-size: 12px; }
+.economia-tema:hover { color: var(--economia-destaque); }
+.economia-abertura { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; padding: 45px 0 36px; }
+.economia-sobretitulo { margin: 0 0 12px; color: var(--economia-destaque); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 1.8px; }
+.economia-abertura h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(54px, 7vw, 88px); font-weight: 400; line-height: .98; letter-spacing: -4px; }
+.economia-abertura h1 > span { color: var(--economia-destaque); }
+.economia-introducao { max-width: 320px; margin: 0 0 3px; color: var(--economia-eixo); font-size: 14px; line-height: 1.8; }
+.economia-navegacao { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--economia-grade); border-bottom: 1px solid var(--economia-grade); }
+.economia-abas { display: flex; gap: 28px; overflow-x: auto; padding: 0 3px; }
+.economia-aba { position: relative; padding: 17px 0; border: 0; background: transparent; white-space: nowrap; color: var(--economia-eixo); font-size: 13px; }
+.economia-aba:hover { color: var(--economia-tinta); }
+.economia-aba--ativa { color: var(--economia-destaque); font-weight: 650; }
+.economia-aba--ativa::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: var(--economia-destaque); content: ''; }
+.economia-aba:focus-visible { outline-offset: -3px; }
+.economia-fonte { flex-shrink: 0; color: var(--economia-eixo); font-size: 11px; }
+.economia-conteudo { min-height: 380px; }
+.economia-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 30px 0; border-bottom: 1px solid var(--economia-grade); }
+.economia-kpi { min-width: 0; padding: 4px 26px; border-left: 1px solid var(--economia-grade); }
+.economia-kpi:first-child { padding-left: 0; border-left: 0; }
+.economia-kpi:last-child { padding-right: 0; }
+.economia-kpi-titulo { margin: 0 0 14px; color: var(--economia-eixo); font-size: 13px; font-weight: 400; }
+.economia-kpi-valor { margin: 0; font-size: clamp(26px, 3vw, 40px); font-weight: 500; letter-spacing: -1.5px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.economia-kpi-detalhe { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 12px 0 0; color: var(--economia-eixo); font-size: 12px; }
+.economia-variacao { font-variant-numeric: tabular-nums; }
+.economia-variacao--alta { color: var(--economia-alta); }
+.economia-variacao--baixa { color: var(--economia-baixa); }
+.economia-status { margin: 0; color: var(--economia-eixo); font-size: 13px; line-height: 1.7; }
+.economia-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px; padding: 36px 0 44px; }
+.economia-grade--panorama { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.economia-secao { min-width: 0; }
+.economia-secao--larga { grid-column: 1 / -1; border-top: 1px solid var(--economia-grade); padding-top: 32px; }
+.economia-secao-titulo { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 400; line-height: 1.3; letter-spacing: -.4px; }
+.economia-legenda { margin: 8px 0 0; color: var(--economia-eixo); font-size: 12px; line-height: 1.7; }
+.economia-grafico { height: 292px; margin-top: 28px; }
+.economia-grafico-status { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; border: 1px dashed var(--economia-grade); color: var(--economia-eixo); font-size: 13px; line-height: 1.7; text-align: center; }
+.economia-tabela-secao { padding-left: 30px; border-left: 1px solid var(--economia-grade); }
+.economia-tabela-rolagem { overflow-x: auto; margin-top: 26px; }
+.economia-tabela { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.economia-tabela th, .economia-tabela td { padding: 17px 10px; border-bottom: 1px solid var(--economia-grade); line-height: 1.6; }
+.economia-tabela th:first-child { padding-left: 0; }
+.economia-tabela th:last-child, .economia-tabela td:last-child { padding-right: 0; text-align: right; }
+.economia-tabela thead th { padding-top: 0; padding-bottom: 12px; color: var(--economia-eixo); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .6px; }
+.economia-tabela tbody th { width: 45%; font-weight: 400; }
+.economia-tabela td { font-variant-numeric: tabular-nums; }
+.economia-tabela td:last-child { color: var(--economia-eixo); }
+.economia-nota { margin: 16px 0 0; color: var(--economia-eixo); font-size: 11px; line-height: 1.7; }
+.economia-rodape { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 22px 0 30px; border-top: 1px solid var(--economia-tinta); color: var(--economia-eixo); font-size: 11px; }
+.economia-rodape > span { color: var(--economia-tinta); font-weight: 600; }
+.economia-rodape p { margin: 0; line-height: 1.6; }
+.economia-rodape a { flex-shrink: 0; color: inherit; text-decoration: none; }
+.economia-rodape a:hover { color: var(--economia-destaque); text-decoration: underline; }
+.economia-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.economia-dados { padding: 36px 0 44px; }
+.economia-dados-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.economia .economia-acao { display: inline-flex; align-items: center; justify-content: center; gap: 16px; flex-shrink: 0; padding: 11px 16px; border: 1px solid var(--economia-destaque); background: transparent; color: var(--economia-destaque); font-size: 13px; }
+.economia-acao:hover:not(:disabled) { background: var(--economia-realce); }
+.economia button:disabled { opacity: .5; cursor: not-allowed; }
+.economia-filtros { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 18px; margin: 28px 0 18px; padding: 22px 0; border-top: 1px solid var(--economia-grade); border-bottom: 1px solid var(--economia-grade); }
+.economia-campo { display: flex; flex-direction: column; min-width: 0; gap: 9px; color: var(--economia-eixo); font-size: 12px; }
+.economia-campo select { width: 100%; min-height: 42px; padding: 9px 30px 9px 10px; border: 1px solid var(--economia-grade); border-radius: 0; background: var(--economia-papel); color: var(--economia-tinta); font: inherit; font-size: 14px; }
+.economia-campo select:disabled { opacity: .5; cursor: not-allowed; }
+.economia .economia-limpar { min-height: 42px; padding: 9px 0; border: 0; background: transparent; color: var(--economia-destaque); font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.economia-dados-resumo { margin-top: 26px; color: var(--economia-eixo); font-size: 12px; line-height: 1.7; }
+.economia-tabela-dados tbody th { width: auto; }
+.economia-tabela-dados td:nth-child(2), .economia-tabela-dados thead th:nth-child(2) { text-align: right; }
+.economia-tabela-dados tbody tr:hover { background: var(--economia-realce); }
+
+.economia-relatorios { padding: 36px 0 44px; }
+.economia-relatorio-status { min-height: 180px; padding: 36px 0; color: var(--economia-eixo); font-size: 14px; line-height: 1.7; }
+.economia-relatorio-documento { padding: 32px; border: 1px solid var(--economia-grade); border-top: 3px solid var(--economia-destaque); margin-top: 30px; }
+.economia-relatorio-expediente { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 1px solid var(--economia-grade); color: var(--economia-eixo); font-size: 11px; }
+.economia-relatorio-expediente > span:first-child { color: var(--economia-tinta); font-weight: 600; }
+.economia-relatorio-cabecalho h3 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(28px, 4vw, 42px); font-weight: 400; letter-spacing: -1px; line-height: 1.2; }
+.economia-relatorio-periodo { margin: 16px 0 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+.economia-relatorio-comparacao { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, .8fr); margin: 30px 0 0; padding: 24px 0; border-top: 1px solid var(--economia-grade); border-bottom: 1px solid var(--economia-grade); }
+.economia-relatorio-comparacao > div { min-width: 0; padding: 0 22px; border-left: 1px solid var(--economia-grade); }
+.economia-relatorio-comparacao > div:first-child { padding-left: 0; border-left: 0; }
+.economia-relatorio-comparacao > div:last-child { padding-right: 0; }
+.economia-relatorio-comparacao dt, .economia-relatorio-extremos dt { margin-bottom: 12px; color: var(--economia-eixo); font-size: 12px; }
+.economia-relatorio-comparacao dd { margin: 0 0 10px; font-size: clamp(16px, 1.75vw, 23px); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.5px; overflow-wrap: anywhere; }
+.economia-relatorio-comparacao span, .economia-relatorio-extremos span { display: block; color: var(--economia-eixo); font-size: 11px; line-height: 1.7; }
+.economia-relatorio-comparacao .economia-relatorio-variacao { color: var(--economia-destaque); }
+.economia-relatorio-leitura { margin: 28px 0; padding: 20px 22px; border-left: 2px solid var(--economia-destaque); background: var(--economia-realce); }
+.economia-relatorio-documento h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.economia-relatorio-leitura p { margin: 10px 0 0; font-size: 14px; line-height: 1.9; }
+.economia-relatorio-extremos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin: 0; padding: 0 0 28px; border-bottom: 1px solid var(--economia-grade); }
+.economia-relatorio-extremos dd { margin: 0 0 8px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(18px, 2.3vw, 26px); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.economia-relatorio-registros { padding-top: 28px; }
+.economia-relatorio-registros .economia-tabela-rolagem { margin-top: 20px; }
+.economia-relatorio-rodape { margin-top: 24px; color: var(--economia-eixo); font-size: 11px; line-height: 1.8; }
+.economia-relatorio-rodape p { margin: 4px 0 0; }
+
+@media (max-width: 900px) {
+  .economia-container { padding: 0 28px; }
+  .economia-edicao { display: none; }
+  .economia-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 26px; }
+  .economia-kpi:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .economia-grade, .economia-grade--panorama { grid-template-columns: minmax(0, 1fr); }
+  .economia-tabela-secao { padding: 28px 0 0; border-left: 0; border-top: 1px solid var(--economia-grade); }
+  .economia-rodape { flex-wrap: wrap; }
+  .economia-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .economia-relatorio-comparacao { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; }
+  .economia-relatorio-comparacao > div:last-child { grid-column: 1 / -1; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--economia-grade); }
+}
+
+@media (max-width: 600px) {
+  .economia-container { padding: 0 20px; }
+  .economia-cabecalho { min-height: 72px; gap: 12px; }
+  .economia-marca { font-size: 16px; }
+  .economia-abertura { align-items: flex-start; flex-direction: column; gap: 22px; padding: 32px 0 26px; }
+  .economia-abertura h1 { letter-spacing: -2px; }
+  .economia-introducao { max-width: 100%; font-size: 13px; }
+  .economia-fonte { display: none; }
+  .economia-abas { width: 100%; gap: 24px; }
+  .economia-resumo { grid-template-columns: minmax(0, 1fr); padding: 0; }
+  .economia-kpi, .economia-kpi:first-child, .economia-kpi:last-child { padding: 22px 0; border: 0; }
+  .economia-kpi + .economia-kpi { border-top: 1px solid var(--economia-grade); }
+  .economia-kpi-titulo { margin-bottom: 9px; }
+  .economia-kpi-valor { font-size: 36px; }
+  .economia-kpi-detalhe { margin-top: 8px; }
+  .economia-grade { padding: 28px 0 32px; gap: 28px; }
+  .economia-secao-titulo { font-size: 22px; }
+  .economia-grafico { height: 260px; margin-top: 22px; }
+  .economia-rodape { gap: 12px; padding-top: 20px; }
+  .economia-rodape p { flex-basis: 100%; order: 1; }
+  .economia-dados { padding: 28px 0 32px; }
+  .economia-dados-cabecalho { flex-direction: column; gap: 16px; }
+  .economia-filtros { gap: 16px; }
+  .economia-campo:first-child { grid-column: 1 / -1; }
+  .economia .economia-limpar { justify-self: start; }
+  .economia-relatorios { padding: 28px 0 32px; }
+  .economia-relatorio-documento { margin-top: 24px; padding: 22px 16px; }
+  .economia-relatorio-expediente { margin-bottom: 24px; }
+  .economia-relatorio-comparacao { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+  .economia-relatorio-comparacao > div, .economia-relatorio-comparacao > div:last-child { padding: 18px 0; border: 0; }
+  .economia-relatorio-comparacao > div:first-child { padding-top: 0; }
+  .economia-relatorio-comparacao > div:last-child { padding-bottom: 0; }
+  .economia-relatorio-comparacao > div + div { border-top: 1px solid var(--economia-grade); }
+  .economia-relatorio-comparacao dd { font-size: 22px; }
+  .economia-relatorio-extremos { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .economia-relatorio-leitura { padding: 16px; }
+}
+
+@media print {
+  @page { size: A4; margin: 16mm; }
+
+  .economia[data-print='relatorio'] {
+    --economia-papel: #fff;
+    --economia-tinta: #222;
+    --economia-eixo: #555;
+    --economia-grade: #ccc;
+    --economia-destaque: #75331f;
+    --economia-realce: #f3f3f3;
+    min-height: 0;
+    background: #fff;
+    color: #222;
+    color-scheme: light;
+  }
+
+  .economia[data-print='relatorio'] .economia-cabecalho,
+  .economia[data-print='relatorio'] .economia-abertura,
+  .economia[data-print='relatorio'] .economia-navegacao,
+  .economia[data-print='relatorio'] .economia-rodape,
+  .economia[data-print='relatorio'] .economia-relatorio-controles,
+  .economia[data-print='relatorio'] .economia-sr-only { display: none; }
+  .economia[data-print='relatorio'] .economia-container { max-width: none; padding: 0; margin: 0; }
+  .economia[data-print='relatorio'] .economia-conteudo { min-height: 0; outline: none; }
+  .economia-relatorios { padding: 0; }
+  .economia-relatorio-documento { border: 0; padding: 0; margin: 0; }
+  .economia-relatorio-cabecalho, .economia-relatorio-comparacao, .economia-relatorio-leitura, .economia-relatorio-extremos, .economia-relatorio-rodape { break-inside: avoid; }
+  .economia-relatorio-expediente { margin-bottom: 22px; }
+  .economia-relatorio-cabecalho h3 { font-size: 28px; }
+  .economia-relatorio-comparacao { grid-template-columns: minmax(0, 1fr); row-gap: 0; margin-top: 22px; padding: 8px 0; }
+  .economia-relatorio-comparacao > div, .economia-relatorio-comparacao > div:last-child { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 12px; align-items: baseline; padding: 10px 0; border: 0; }
+  .economia-relatorio-comparacao dd { font-size: 15px; margin: 0; }
+  .economia-relatorio-comparacao dt { margin: 0; }
+  .economia-relatorio-leitura { margin: 22px 0; padding: 14px 18px; }
+  .economia-relatorio-leitura p { font-size: 12px; }
+  .economia-relatorio-extremos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .economia-relatorio-extremos dd { font-size: 18px; }
+  .economia-relatorio-registros .economia-tabela-rolagem { overflow: visible; }
+  .economia-relatorio-registros thead { display: table-header-group; }
+  .economia-relatorio-registros tr { break-inside: avoid; }
+  .economia-relatorio-registros th, .economia-relatorio-registros td { padding-top: 9px; padding-bottom: 9px; }
+  .economia-relatorio-documento h4 { break-after: avoid; }
+}

@@ -34,6 +34,11 @@ async def info(id: int, limit: int = Query(20, ge=1, le=100), offset: int = Quer
         "classificacoes": data["classificacoes"][offset:offset + limit]
     }
 
+@router.get("/pib-anual")
+async def pib_anual() -> dict:
+    return await ibge_service.get_pib_anual()
+
+
 @router.get("/values")
 async def values(agregados_id: Annotated[int, Query(...)], variavel_id: Annotated[int, Query(...)]) -> dict:
     data = await ibge_service.get_value_from_agregado_variavel_id(agregados_id, variavel_id)
