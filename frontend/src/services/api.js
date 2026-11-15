@@ -1,65 +1,63 @@
+import { CACHE_TTL_MS, limparCache } from './cache.js'
+import {
+  buscarAgregados,
+  buscarInfoAgregado,
+  buscarPibAnual,
+  buscarValoresAgregado,
+  completarPibAnual,
+  converterNumero,
+  obterDadosPibAnual,
+} from './ibge.js'
 
-function converterNumero(valor) {
-  if (typeof valor === 'number') {
-    return Number.isFinite(valor) ? valor : null
-  }
-
-  if (valor == null) return null
-
-  const texto = String(valor).trim()
-
-  
-  if (['', '-', '..', '...', 'x'].includes(texto.toLowerCase())) {
-    return null
-  }
-
-  const numero = Number(texto.replace(',', '.'))
-
-  return Number.isFinite(numero) ? numero : null
+export async function buscarSerie(agregadoId, variavelId, classificacao = null, opcoes = {}) {
+  const resposta = await buscarValoresAgregado(agregadoId, variavelId, classificacao, opcoes)
+  return resposta.serie
 }
 
-async function obterSerie(url) {
-  const resp = await fetch(url)
-
-  if (!resp.ok) {
-    throw new Error(`Erro ${resp.status} ao buscar dados`)
+export async function buscarIndicador(indicador, opcoes = {}) {
+  if (!indicador || typeof indicador !== 'object') {
+    throw new Error('Configuração de indicador inválida.')
   }
 
-  const dados = await resp.json()
-  const bloco = dados.resultados?.[0]
+  if (indicador.complementoTrimestral || indicador.id === 'pib') {
+    const complemento = indicador.complementoTrimestral ?? {}
+    const resposta = await obterDadosPibAnual({
+      agregadoAnualId: indicador.agregadoId ?? 6784,
+      variavelAnualId: indicador.variavelId ?? 9808,
+      agregadoTrimestralId: complemento.agregadoId ?? 1846,
+      variavelTrimestralId: complemento.variavelId ?? 585,
+      classificacaoTrimestral: complemento.classificacao ?? '11255[90707]',
+      periodosTrimestral: complemento.periodos ?? 'all',
+      ...opcoes,
+    })
 
-  if (!bloco || typeof bloco !== 'object') {
-    throw new Error('Formato de resposta inesperado da API')
+    return {
+      dados: resposta.serie,
+      variavel: resposta.variavel,
+      unidade: resposta.unidade,
+    }
   }
 
-  const serie = Object.entries(bloco)
-    .map(([periodo, valor]) => ({
-      periodo,
-      valor: converterNumero(valor),
-    }))
-    .filter((item) => item.valor !== null)
+  const resposta = await buscarValoresAgregado(
+    indicador.agregadoId,
+    indicador.variavelId,
+    indicador.classificacao ?? null,
+    opcoes
+  )
 
-  if (serie.length === 0) {
-    console.warn('Nenhum valor numérico encontrado:', dados)
+  return {
+    dados: resposta.serie,
+    variavel: resposta.variavel,
+    unidade: resposta.unidade,
   }
-
-  return serie
 }
 
-
-export function buscarSerie(agregadoId, variavelId, classificacao) {
-  const params = new URLSearchParams({
-    agregados_id: agregadoId,
-    variavel_id: variavelId,
-  })
-
-  if (classificacao) {
-    params.set('classificacao', classificacao)
-  }
-
-  return obterSerie(`/economy/values?${params.toString()}`)
-}
-
-export function buscarPibAnual() {
-  return obterSerie('/economy/pib-anual')
+export {
+  CACHE_TTL_MS,
+  buscarAgregados,
+  buscarInfoAgregado,
+  buscarPibAnual,
+  completarPibAnual,
+  converterNumero,
+  limparCache,
 }
