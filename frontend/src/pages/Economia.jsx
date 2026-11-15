@@ -11,10 +11,19 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { buscarPibAnual, buscarSerie } from '../services/api'
+import { INDICADORES } from '../data/indicadores'
+import { buscarIndicador } from '../services/api'
 import DadosEconomia from '../components/DadosEconomia'
 import RelatoriosEconomia from '../components/RelatoriosEconomia'
-import { formatarTrimestreMovel } from '../utils/dadosEconomia'
+import {
+  calcularCrescimento,
+  formatarMesAno,
+  formatarMoeda,
+  formatarNumero,
+  formatarReferenciaIndicador,
+  formatarTrimestreMovel,
+  formatarValorIndicador,
+} from '../utils/dadosEconomia'
 import './Economia.css'
 
 const COR = 'var(--economia-destaque)'
@@ -26,58 +35,74 @@ const TOOLTIP = {
   color: 'var(--economia-tinta)',
   borderRadius: 0,
 }
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const buscarPerCapita = () => buscarSerie(6784, 9812)
-const buscarIpca = () => buscarSerie(7060, 2265)
-const buscarDesemprego = () => buscarSerie(6381, 4099)
+const SERIE_INICIAL = { dados: [], carregando: true, erro: null }
+const PERIODOS_GRAFICO = [
+  { id: '6m', rotulo: '6 meses', meses: 6, anos: 1 },
+  { id: '1a', rotulo: '1 ano', meses: 12, anos: 1 },
+  { id: '5a', rotulo: '5 anos', meses: 60, anos: 5 },
+  { id: '10a', rotulo: '10 anos', meses: 120, anos: 10 },
+  { id: 'tudo', rotulo: 'Tudo', meses: null, anos: null },
+]
+const PERIODOS_ANUAIS = PERIODOS_GRAFICO.filter((opcao) => opcao.id !== '6m')
 
-const buscarIpcaMensal = () => buscarSerie(7060, 63)
-const buscarIpcaAno = () => buscarSerie(7060, 69)
-
-const buscarProducaoIndustrial = () => buscarSerie(8888, 12607, '544[129314]')
-const buscarProducaoIndustrialSemAjuste = () => buscarSerie(8888, 12606, '544[129314]')
-const buscarComercioVarejista = () => buscarSerie(8880, 7170, '11046[56734]')
-const buscarVolumeServicos = () => buscarSerie(5906, 7168, '11046[56726]')
-
-
-
-
-const num = (n, casas = 2) =>
-  n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
-const brl = (n) => `R$ ${num(n, 0)}`
-const trilhoes = (n, casas = 1) => `R$ ${num(n / 1e12, casas)} tri`
-
-
-const mesAno = (p) => `${MESES[Number(p.slice(4, 6)) - 1]}/${p.slice(2, 4)}`
-
-
-const crescimento = (serie) => {
-  if (serie.length < 2) return null
-  const [anterior, atual] = serie.slice(-2)
-  return (atual.valor / anterior.valor - 1) * 100
+const intervalo = (serie) => {
+  if (serie.length === 0) return ''
+  if (serie.length === 1) return `, ${serie[0].periodo}`
+  return `, ${serie[0].periodo} a ${serie.at(-1).periodo}`
 }
 
+function filtrarPorPeriodoGrafico(dados, periodoId) {
+  if (!Array.isArray(dados) || dados.length === 0 || periodoId === 'tudo') {
+    return dados
+  }
 
-const intervalo = (serie) =>
-  serie.length > 0 ? `, ${serie[0].periodo} a ${serie.at(-1).periodo}` : ''
+  const opcao = PERIODOS_GRAFICO.find(({ id }) => id === periodoId)
+  if (!opcao || (!opcao.meses && !opcao.anos)) {
+    return dados
+  }
 
+  const ultimoPeriodo = String(dados.at(-1).periodo)
+  const quantidade = ultimoPeriodo.length === 6 ? opcao.meses : opcao.anos
+  return quantidade ? dados.slice(-quantidade) : dados
+}
 
-function useSerie(carregar) {
-  const [estado, setEstado] = useState({ dados: [], carregando: true, erro: null })
+function criarEstadoInicial(listaIndicadores) {
+  return Object.fromEntries(
+    listaIndicadores.map(({ id }) => [id, { ...SERIE_INICIAL }])
+  )
+}
+
+function useIndicadores(listaIndicadores) {
+  const [series, setSeries] = useState(() => criarEstadoInicial(listaIndicadores))
 
   useEffect(() => {
     let ativo = true
-    carregar()
-      .then((dados) => ativo && setEstado({ dados, carregando: false, erro: null }))
-      .catch((e) => ativo && setEstado({ dados: [], carregando: false, erro: e.message }))
+
+    for (const indicador of listaIndicadores) {
+      buscarIndicador(indicador)
+        .then(({ dados }) => {
+          if (!ativo) return
+          setSeries((atual) => ({
+            ...atual,
+            [indicador.id]: { dados, carregando: false, erro: null },
+          }))
+        })
+        .catch((erro) => {
+          if (!ativo) return
+          setSeries((atual) => ({
+            ...atual,
+            [indicador.id]: { dados: [], carregando: false, erro: erro.message },
+          }))
+        })
+    }
+
     return () => {
       ativo = false
     }
-  }, [carregar])
+  }, [listaIndicadores])
 
-  return estado
+  return series
 }
-
 
 const statusDe = (s) => {
   if (s.carregando) return 'Carregando...'
@@ -86,11 +111,28 @@ const statusDe = (s) => {
   return null
 }
 
+function resumirSerieAcessivel(dados, { titulo, formatarPeriodo = String, formatarValor }) {
+  if (!Array.isArray(dados) || dados.length === 0) return ''
+
+  const inicial = dados[0]
+  const final = dados.at(-1)
+  let menor = inicial
+  let maior = inicial
+
+  for (const item of dados) {
+    if (item.valor < menor.valor) menor = item
+    if (item.valor > maior.valor) maior = item
+  }
+
+  return `Gráfico de ${titulo}. ${dados.length} ${dados.length === 1 ? 'registro' : 'registros'}, de ${formatarPeriodo(inicial.periodo)} (${formatarValor(inicial.valor)}) até ${formatarPeriodo(final.periodo)} (${formatarValor(final.valor)}). Menor valor: ${formatarValor(menor.valor)} em ${formatarPeriodo(menor.periodo)}. Maior valor: ${formatarValor(maior.valor)} em ${formatarPeriodo(maior.periodo)}.`
+}
 
 function Variacao({ valor }) {
   return (
     <span className={`economia-variacao ${valor >= 0 ? 'economia-variacao--alta' : 'economia-variacao--baixa'}`}>
-      {valor >= 0 ? '↑' : '↓'} {num(Math.abs(valor), 1)}%
+      <span aria-hidden="true">{valor >= 0 ? '↑' : '↓'} </span>
+      <span className="economia-sr-only">{valor >= 0 ? 'Alta de ' : 'Queda de '}</span>
+      {formatarNumero(Math.abs(valor), 1)}%
     </span>
   )
 }
@@ -118,20 +160,54 @@ function Kpi({ titulo, status, valor, detalhe, variacao }) {
   )
 }
 
-function Grafico({ titulo, subtitulo, status, className = '', children }) {
+function Grafico({
+  titulo,
+  subtitulo,
+  status,
+  resumoAcessivel,
+  opcoesPeriodo = PERIODOS_GRAFICO,
+  periodoAtivo,
+  aoMudarPeriodo,
+  className = '',
+  children,
+}) {
   return (
     <section className={`economia-secao ${className}`}>
-      <h2 className="economia-secao-titulo">{titulo}</h2>
-      <p className="economia-legenda">{subtitulo}</p>
+      <div className="economia-secao-cabecalho">
+        <div>
+          <h2 className="economia-secao-titulo">{titulo}</h2>
+          <p className="economia-legenda">{subtitulo}</p>
+        </div>
+        {aoMudarPeriodo && (
+          <div className="economia-periodos" role="group" aria-label={`Período de ${titulo}`}>
+            {opcoesPeriodo.map((opcao) => (
+              <button
+                key={opcao.id}
+                type="button"
+                aria-pressed={periodoAtivo === opcao.id}
+                onClick={() => aoMudarPeriodo(opcao.id)}
+                className={`economia-periodo-botao ${periodoAtivo === opcao.id ? 'economia-periodo-botao--ativo' : ''}`}
+              >
+                {opcao.rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {!status && resumoAcessivel && (
+        <p className="economia-sr-only">{resumoAcessivel}</p>
+      )}
       <div className="economia-grafico">
         {status ? (
           <div className="economia-grafico-status" role="status">
             {status}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            {children}
-          </ResponsiveContainer>
+          <div aria-hidden="true" style={{ width: '100%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {children}
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </section>
@@ -139,22 +215,33 @@ function Grafico({ titulo, subtitulo, status, className = '', children }) {
 }
 
 function GraficoPib({ serie }) {
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-pib-filtro', 'tudo')
+  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const resumo = resumirSerieAcessivel(dados, {
+    titulo: 'PIB do Brasil',
+    formatarValor: formatarMoeda,
+  })
+
   return (
     <Grafico
       titulo="PIB do Brasil (R$ trilhões)"
-      subtitulo={`Valores correntes${intervalo(serie.dados)}`}
+      subtitulo={`Valores correntes${intervalo(dados)}`}
       status={statusDe(serie)}
+      resumoAcessivel={resumo}
+      opcoesPeriodo={PERIODOS_ANUAIS}
+      periodoAtivo={periodoAtivo}
+      aoMudarPeriodo={setPeriodoAtivo}
     >
-      <BarChart data={serie.dados}>
+      <BarChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
         <YAxis
           tick={EIXO}
           domain={[0, 'auto']}
           allowDecimals={false}
-          tickFormatter={(v) => num(v / 1e12, 0)}
+          tickFormatter={(v) => formatarNumero(v / 1e12, 0)}
         />
-        <Tooltip contentStyle={TOOLTIP} cursor={{ fill: 'var(--economia-realce)' }} formatter={(v) => [brl(v), 'PIB']} />
+        <Tooltip contentStyle={TOOLTIP} cursor={{ fill: 'var(--economia-realce)' }} formatter={(v) => [formatarMoeda(v), 'PIB']} />
         <Bar dataKey="valor" fill={COR} maxBarSize={48} />
       </BarChart>
     </Grafico>
@@ -162,67 +249,103 @@ function GraficoPib({ serie }) {
 }
 
 function GraficoPibPerCapita({ serie }) {
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-percapita-filtro', 'tudo')
+  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const resumo = resumirSerieAcessivel(dados, {
+    titulo: 'PIB per capita do Brasil',
+    formatarValor: formatarMoeda,
+  })
+
   return (
     <Grafico
       titulo="PIB per capita do Brasil (R$)"
-      subtitulo={`Valores correntes${intervalo(serie.dados)}`}
+      subtitulo={`Valores correntes${intervalo(dados)}`}
       status={statusDe(serie)}
+      resumoAcessivel={resumo}
+      opcoesPeriodo={PERIODOS_ANUAIS}
+      periodoAtivo={periodoAtivo}
+      aoMudarPeriodo={setPeriodoAtivo}
     >
-      <LineChart data={serie.dados}>
+      <LineChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
-        <YAxis tick={EIXO} width={70} domain={[30000, 'auto']} tickFormatter={(v) => num(v, 0)} />
-        <Tooltip contentStyle={TOOLTIP} formatter={(v) => [brl(v), 'PIB per capita']} />
-        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot />
+        <YAxis tick={EIXO} width={70} domain={['auto', 'auto']} tickFormatter={(v) => formatarNumero(v, 0)} />
+        <Tooltip contentStyle={TOOLTIP} formatter={(v) => [formatarMoeda(v), 'PIB per capita']} />
+        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
       </LineChart>
     </Grafico>
   )
 }
 
 function GraficoIpca({ serie, className }) {
-  const dados = serie.dados
-  const sub =
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-ipca-filtro', 'tudo')
+  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const periodo =
     dados.length > 0
-      ? `${mesAno(dados[0].periodo)} a ${mesAno(dados.at(-1).periodo)}`
-      : 'Acumulado em 12 meses'
+      ? dados.length === 1
+        ? ` · ${formatarMesAno(dados[0].periodo)}`
+        : ` · ${formatarMesAno(dados[0].periodo)} a ${formatarMesAno(dados.at(-1).periodo)}`
+      : ''
+  const resumo = resumirSerieAcessivel(dados, {
+    titulo: 'IPCA acumulado em 12 meses',
+    formatarPeriodo: formatarMesAno,
+    formatarValor: (v) => `${formatarNumero(v)}%`,
+  })
 
   return (
     <Grafico
-      titulo="IPCA – acumulado em 12 meses (%)"
-      subtitulo={sub}
+      titulo="IPCA (%)"
+      subtitulo={`Acumulado em 12 meses${periodo}`}
       status={statusDe(serie)}
+      resumoAcessivel={resumo}
+      opcoesPeriodo={PERIODOS_GRAFICO}
+      periodoAtivo={periodoAtivo}
+      aoMudarPeriodo={setPeriodoAtivo}
       className={className}
     >
       <LineChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
-        <XAxis dataKey="periodo" tick={EIXO} tickFormatter={mesAno} />
-        <YAxis tick={EIXO} width={55} tickFormatter={(v) => `${num(v, 1)}%`} />
-        <Tooltip contentStyle={TOOLTIP} labelFormatter={mesAno} formatter={(v) => [`${num(v)}%`, 'IPCA 12 meses']} />
-        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot />
+        <XAxis dataKey="periodo" tick={EIXO} tickFormatter={formatarMesAno} minTickGap={24} />
+        <YAxis tick={EIXO} width={55} tickFormatter={(v) => `${formatarNumero(v, 1)}%`} />
+        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarMesAno} formatter={(v) => [`${formatarNumero(v)}%`, 'IPCA']} />
+        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
       </LineChart>
     </Grafico>
   )
 }
 
 function GraficoDesemprego({ serie, className }) {
-  const dados = serie.dados
-  const periodo = dados.length > 0
-    ? ` · ${formatarTrimestreMovel(dados[0].periodo)} a ${formatarTrimestreMovel(dados.at(-1).periodo)}`
-    : ''
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-desemprego-filtro', 'tudo')
+  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const periodo =
+    dados.length > 0
+      ? dados.length === 1
+        ? ` · ${formatarTrimestreMovel(dados[0].periodo)}`
+        : ` · ${formatarTrimestreMovel(dados[0].periodo)} a ${formatarTrimestreMovel(dados.at(-1).periodo)}`
+      : ''
+  const resumo = resumirSerieAcessivel(dados, {
+    titulo: 'Taxa de desemprego',
+    formatarPeriodo: formatarTrimestreMovel,
+    formatarValor: (v) => `${formatarNumero(v, 1)}%`,
+  })
 
   return (
     <Grafico
       titulo="Taxa de desemprego (%)"
       subtitulo={`Trimestres móveis · pessoas de 14 anos ou mais na força de trabalho${periodo}`}
       status={statusDe(serie)}
+      resumoAcessivel={resumo}
+      opcoesPeriodo={PERIODOS_GRAFICO}
+      periodoAtivo={periodoAtivo}
+      aoMudarPeriodo={setPeriodoAtivo}
       className={className}
     >
       <LineChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} tickFormatter={formatarTrimestreMovel} minTickGap={24} />
-        <YAxis tick={EIXO} width={55} domain={[0, 'auto']} tickFormatter={(v) => `${num(v, 1)}%`} />
-        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarTrimestreMovel} formatter={(v) => [`${num(v, 1)}%`, 'Taxa de desemprego']} />
-        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot />
+        <YAxis tick={EIXO} width={55} domain={[0, 'auto']} tickFormatter={(v) => `${formatarNumero(v, 1)}%`} />
+        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarTrimestreMovel} formatter={(v) => [`${formatarNumero(v, 1)}%`, 'Taxa de desemprego']} />
+        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
       </LineChart>
     </Grafico>
   )
@@ -260,103 +383,26 @@ function TabelaIndicadores({ linhas }) {
 
 export default function Economia() {
   const [temaEscuro, setTemaEscuro] = useLocalStorage('eco-tema-escuro', false)
-const [aba, setAba] = useLocalStorage('eco-aba-ativa', 'Visão Geral')
+  const [aba, setAba] = useLocalStorage('eco-aba-ativa', 'Visão Geral')
+  const series = useIndicadores(INDICADORES)
 
- 
- 
-const pib = useSerie(buscarPibAnual)
-const perCapita = useSerie(buscarPerCapita)
-const ipca = useSerie(buscarIpca)
-const desemprego = useSerie(buscarDesemprego)
+  const { pib, perCapita, ipca, desemprego } = series
+  const kpisDestaque = INDICADORES.filter((indicador) => indicador.destaqueKpi)
 
-const ipcaMensal = useSerie(buscarIpcaMensal)
-const ipcaAno = useSerie(buscarIpcaAno)
-const producaoIndustrial = useSerie(buscarProducaoIndustrial)
-const producaoIndustrialSemAjuste = useSerie(buscarProducaoIndustrialSemAjuste)
-const comercioVarejista = useSerie(buscarComercioVarejista)
-const volumeServicos = useSerie(buscarVolumeServicos)
+  const linhas = INDICADORES.map((indicador) => {
+    const serie = series[indicador.id]
+    const registroAtual = serie.dados.at(-1)
 
-
-  
-  const pibAtual = pib.dados.at(-1)
-  const perCapitaAtual = perCapita.dados.at(-1)
-  const ipcaAtual = ipca.dados.at(-1)
-  const desempregoAtual = desemprego.dados.at(-1)
-
-  const ipcaMensalAtual = ipcaMensal.dados.at(-1)
-  const ipcaAnoAtual = ipcaAno.dados.at(-1)
-  const producaoIndustrialAtual = producaoIndustrial.dados.at(-1)
-  const producaoIndustrialSemAjusteAtual = producaoIndustrialSemAjuste.dados.at(-1)
-  const comercioVarejistaAtual = comercioVarejista.dados.at(-1)
-  const volumeServicosAtual = volumeServicos.dados.at(-1)
-
-
-  const linhas = [
-    {
-      nome: 'PIB (valores correntes)',
-      valor: pibAtual ? trilhoes(pibAtual.valor) : statusDe(pib),
-      ref: pibAtual?.periodo,
-    },
-    {
-      nome: 'PIB per capita (valores correntes)',
-      valor: perCapitaAtual ? brl(perCapitaAtual.valor) : statusDe(perCapita),
-      ref: perCapitaAtual?.periodo,
-    },
-    {
-      nome: 'IPCA – acumulado em 12 meses',
-      valor: ipcaAtual ? `${num(ipcaAtual.valor)}%` : statusDe(ipca),
-      ref: ipcaAtual && mesAno(ipcaAtual.periodo),
-    },
-    {
-      nome: 'Taxa de desemprego',
-      valor: desempregoAtual ? `${num(desempregoAtual.valor, 1)}%` : statusDe(desemprego),
-      ref: desempregoAtual && formatarTrimestreMovel(desempregoAtual.periodo),
-    },
-{
-  nome: 'IPCA - variação mensal',
-  valor: ipcaMensalAtual
-    ? `${num(ipcaMensalAtual.valor)}%`
-    : statusDe(ipcaMensal),
-  ref: ipcaMensalAtual && mesAno(ipcaMensalAtual.periodo),
-},
-{
-  nome: 'IPCA - acumulado no ano',
-  valor: ipcaAnoAtual
-    ? `${num(ipcaAnoAtual.valor)}%`
-    : statusDe(ipcaAno),
-  ref: ipcaAnoAtual && mesAno(ipcaAnoAtual.periodo),
-},
-{
-  nome: 'Produção industrial',
-  valor: producaoIndustrialAtual
-    ? num(producaoIndustrialAtual.valor)
-    : statusDe(producaoIndustrial),
-  ref: producaoIndustrialAtual && mesAno(producaoIndustrialAtual.periodo),
-},
-{
-  nome: 'Produção industrial - sem ajuste',
-  valor: producaoIndustrialSemAjusteAtual
-    ? num(producaoIndustrialSemAjusteAtual.valor)
-    : statusDe(producaoIndustrialSemAjuste),
-  ref: producaoIndustrialSemAjusteAtual &&
-    mesAno(producaoIndustrialSemAjusteAtual.periodo),
-},
-{
-  nome: 'Volume de vendas do comércio',
-  valor: comercioVarejistaAtual
-    ? num(comercioVarejistaAtual.valor)
-    : statusDe(comercioVarejista),
-  ref: comercioVarejistaAtual && mesAno(comercioVarejistaAtual.periodo),
-},
-{
-  nome: 'Volume de serviços',
-  valor: volumeServicosAtual
-    ? num(volumeServicosAtual.valor)
-    : statusDe(volumeServicos),
-  ref: volumeServicosAtual && mesAno(volumeServicosAtual.periodo),
-},
-
-  ]
+    return {
+      nome: indicador.nomeTabela ?? indicador.nome,
+      valor: registroAtual
+        ? formatarValorIndicador(registroAtual.valor, indicador)
+        : statusDe(serie),
+      ref: registroAtual
+        ? formatarReferenciaIndicador(registroAtual.periodo, indicador.frequencia)
+        : '',
+    }
+  })
 
   return (
     <div
@@ -367,13 +413,11 @@ const volumeServicos = useSerie(buscarVolumeServicos)
       <div className="economia-container">
         <header className="economia-cabecalho">
           <div className="economia-expediente">
-            <span className="economia-marca">Eco<span> / </span>Dashboard</span>
-            <span className="economia-edicao">Brasil · Indicadores econômicos</span>
+            <span className="economia-marca">Eco<span aria-hidden="true"> / </span>Dashboard</span>
           </div>
           <button
             type="button"
-            aria-label="Tema escuro"
-            aria-pressed={temaEscuro}
+            aria-label={temaEscuro ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
             onClick={() => setTemaEscuro((atual) => !atual)}
             className="economia-tema"
           >
@@ -388,17 +432,6 @@ const volumeServicos = useSerie(buscarVolumeServicos)
             {temaEscuro ? 'Tema claro' : 'Tema escuro'}
           </button>
         </header>
-
-        <div className="economia-abertura">
-          <div>
-            <p className="economia-sobretitulo">O país em números</p>
-            <h1>Economia<span>.</span></h1>
-          </div>
-          <p className="economia-introducao">
-            Produção, renda, inflação e trabalho.<br />
-            Um olhar sobre os indicadores do Brasil, a partir dos dados do IBGE.
-          </p>
-        </div>
 
         <nav className="economia-navegacao" aria-label="Seções de economia">
           <div role="tablist" aria-label="Indicadores econômicos" className="economia-abas">
@@ -431,7 +464,6 @@ const volumeServicos = useSerie(buscarVolumeServicos)
               </button>
             ))}
           </div>
-          <span className="economia-fonte">Fonte: IBGE</span>
         </nav>
 
         <main
@@ -441,97 +473,64 @@ const volumeServicos = useSerie(buscarVolumeServicos)
           tabIndex={0}
           className="economia-conteudo"
         >
+          {aba === 'Visão Geral' && (
+            <>
+              <div className="economia-resumo">
+                {kpisDestaque.map((indicador) => {
+                  const serie = series[indicador.id]
+                  const registroAtual = serie.dados.at(-1)
+                  const referencia = registroAtual
+                    ? formatarReferenciaIndicador(registroAtual.periodo, indicador.frequencia)
+                    : ''
+                  const detalhe = registroAtual
+                    ? [referencia, indicador.detalheKpi].filter(Boolean).join(' · ')
+                    : ''
 
-        {aba === 'Visão Geral' && (
-          <>
-            <div className="economia-resumo">
-              <Kpi
-                titulo="PIB do Brasil"
-                status={statusDe(pib)}
-                valor={pibAtual && trilhoes(pibAtual.valor)}
-                detalhe={pibAtual && `${pibAtual.periodo} · nominal`}
-                variacao={crescimento(pib.dados)}
-              />
-              <Kpi
-                titulo="PIB per capita do Brasil"
-                status={statusDe(perCapita)}
-                valor={perCapitaAtual && brl(perCapitaAtual.valor)}
-                detalhe={perCapitaAtual && `${perCapitaAtual.periodo} · nominal`}
-                variacao={crescimento(perCapita.dados)}
-              />
-              <Kpi
-                titulo="IPCA acumulado em 12 meses"
-                status={statusDe(ipca)}
-                valor={ipcaAtual && `${num(ipcaAtual.valor)}%`}
-                detalhe={ipcaAtual && mesAno(ipcaAtual.periodo)}
-              />
-              <Kpi
-                titulo="Taxa de desemprego"
-                status={statusDe(desemprego)}
-                valor={desempregoAtual && `${num(desempregoAtual.valor, 1)}%`}
-                detalhe={desempregoAtual && `${formatarTrimestreMovel(desempregoAtual.periodo)} · trimestre móvel`}
-              />
-            </div>
+                  return (
+                    <Kpi
+                      key={indicador.id}
+                      titulo={indicador.nome}
+                      status={statusDe(serie)}
+                      valor={registroAtual && formatarValorIndicador(registroAtual.valor, indicador)}
+                      detalhe={detalhe}
+                      variacao={indicador.exibirVariacaoKpi ? calcularCrescimento(serie.dados) : null}
+                    />
+                  )
+                })}
+              </div>
+              <div className="economia-grade economia-grade--panorama">
+                <GraficoPib serie={pib} />
+                <TabelaIndicadores linhas={linhas} />
+              </div>
+            </>
+          )}
+
+          {aba === 'Indicadores' && (
             <div className="economia-grade economia-grade--panorama">
-              <GraficoPib serie={pib} />
+              <GraficoIpca serie={ipca} />
               <TabelaIndicadores linhas={linhas} />
+              <GraficoDesemprego serie={desemprego} className="economia-secao--larga" />
             </div>
-          </>
-        )}
+          )}
 
-        {aba === 'Indicadores' && (
-          <div className="economia-grade economia-grade--panorama">
-            <GraficoIpca serie={ipca} />
-            <TabelaIndicadores linhas={linhas} />
-            <GraficoDesemprego serie={desemprego} className="economia-secao--larga" />
-          </div>
-        )}
+          {aba === 'Gráficos' && (
+            <div className="economia-grade">
+              <GraficoPib serie={pib} />
+              <GraficoPibPerCapita serie={perCapita} />
+              <GraficoIpca serie={ipca} />
+              <GraficoDesemprego serie={desemprego} />
+            </div>
+          )}
 
-        {aba === 'Gráficos' && (
-          <div className="economia-grade">
-            <GraficoPib serie={pib} />
-            <GraficoPibPerCapita serie={perCapita} />
-            <GraficoIpca serie={ipca} />
-            <GraficoDesemprego serie={desemprego} />
-          </div>
-        )}
+          {aba === 'Dados' && <DadosEconomia series={series} {...series} />}
 
-        
-{aba === 'Dados' && (
-  <DadosEconomia
-    pib={pib}
-    perCapita={perCapita}
-    ipca={ipca}
-    desemprego={desemprego}
-    ipcaMensal={ipcaMensal}
-    ipcaAno={ipcaAno}
-    producaoIndustrial={producaoIndustrial}
-    producaoIndustrialSemAjuste={producaoIndustrialSemAjuste}
-    comercioVarejista={comercioVarejista}
-    volumeServicos={volumeServicos}
-  />
-)}
-
-{aba === 'Relatórios' && (
-  <RelatoriosEconomia
-    pib={pib}
-    perCapita={perCapita}
-    ipca={ipca}
-    desemprego={desemprego}
-    ipcaMensal={ipcaMensal}
-    ipcaAno={ipcaAno}
-    producaoIndustrial={producaoIndustrial}
-    producaoIndustrialSemAjuste={producaoIndustrialSemAjuste}
-    comercioVarejista={comercioVarejista}
-    volumeServicos={volumeServicos}
-  />
-)}
+          {aba === 'Relatórios' && <RelatoriosEconomia series={series} {...series} />}
         </main>
 
         <footer className="economia-rodape">
           <span>Eco / Dashboard</span>
           <p>Fonte: Instituto Brasileiro de Geografia e Estatística · IBGE</p>
-          <a href="#economia-aba-0">Voltar às seções ↑</a>
+          <a href="#economia-aba-0">Voltar às seções <span aria-hidden="true">↑</span></a>
         </footer>
       </div>
     </div>
