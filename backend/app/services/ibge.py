@@ -96,41 +96,58 @@ class IBGEService:
 
         return data
 
-    async def get_value_from_agregado_variavel_id(self, agregado_id: int, variavel_id: int) -> dict:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.IBGE_URL}/{agregado_id}/variaveis/{variavel_id}?localidades=BR")
+    async def get_value_from_agregado_variavel_id(
+        self,
+        agregado_id: int,
+        variavel_id: int,
+        classificacao: str | None = None
+    ) -> dict:
+
+        params = {"localidades": "BR"}
+
+        if classificacao:
+            params["classificacao"] = classificacao
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{self.IBGE_URL}/{agregado_id}/variaveis/{variavel_id}",
+                params=params
+            )
+
         response.raise_for_status()
 
-        data = response.json()[0]
-        unit = {}
-        if data["unidade"] in UNIT_CURRENCY:
-            unit = UNIT_CURRENCY[data["unidade"]]
+        dados = response.json()
+
+        if not dados:
+            raise ValueError("O IBGE não retornou dados para essa consulta.")
+
+        data = dados[0]
+        unit = UNIT_CURRENCY.get(data["unidade"])
 
         resultados = []
-        if bool(unit):
-            for resultado in data["resultados"]:
-                new_resultado = {}
-                for serie in resultado["series"]:
-                    for key, value in serie["serie"].items():
-                        new_resultado[key] = str(float(value) * unit["multiplier"])
-                resultados.append(new_resultado)
-        else:
-            for resultado in data["resultados"]:
-                new_resultado = {}
-                for serie in resultado["series"]:
-                    for key, value in serie["serie"].items():
-                        new_resultado[key] = value
-                resultados.append(new_resultado)
-                
 
-        if bool(unit):
-            return {
-                "variavel": data["variavel"],
-                "unidade": unit["type"],
-                "resultados": resultados
-            }
+        for resultado in data["resultados"]:
+            novo_resultado = {}
+
+            for serie in resultado["series"]:
+                for periodo, valor in serie["serie"].items():
+
+                    if valor in ("..", "...", "-", "x", ""):
+                        novo_resultado[periodo] = None
+                        continue
+
+                    if unit:
+                        numero = Decimal(str(valor))
+                        novo_resultado[periodo] = str(
+                            numero * unit["multiplier"]
+                        )
+                    else:
+                        novo_resultado[periodo] = valor
+
+            resultados.append(novo_resultado)
+
         return {
-                "variavel": data["variavel"],
-                "unidade": data["unidade"],
-                "resultados": resultados
-            }
+            "variavel": data["variavel"],
+            "unidade": unit["type"] if unit else data["unidade"],
+            "resultados": resultados
+        }

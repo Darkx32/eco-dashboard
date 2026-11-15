@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import {
   Bar,
   BarChart,
@@ -29,6 +30,16 @@ const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'o
 const buscarPerCapita = () => buscarSerie(6784, 9812)
 const buscarIpca = () => buscarSerie(7060, 2265)
 const buscarDesemprego = () => buscarSerie(6381, 4099)
+
+const buscarIpcaMensal = () => buscarSerie(7060, 63)
+const buscarIpcaAno = () => buscarSerie(7060, 69)
+
+const buscarProducaoIndustrial = () => buscarSerie(8888, 12607, '544[129314]')
+const buscarProducaoIndustrialSemAjuste = () => buscarSerie(8888, 12606, '544[129314]')
+const buscarComercioVarejista = () => buscarSerie(8880, 7170, '11046[56734]')
+const buscarVolumeServicos = () => buscarSerie(5906, 7168, '11046[56726]')
+
+
 
 
 const num = (n, casas = 2) =>
@@ -248,20 +259,37 @@ function TabelaIndicadores({ linhas }) {
 }
 
 export default function Economia() {
-  const [temaEscuro, setTemaEscuro] = useState(false)
-  const [aba, setAba] = useState('Visão Geral')
+  const [temaEscuro, setTemaEscuro] = useLocalStorage('eco-tema-escuro', false)
+const [aba, setAba] = useLocalStorage('eco-aba-ativa', 'Visão Geral')
 
  
-  const pib = useSerie(buscarPibAnual)
-  const perCapita = useSerie(buscarPerCapita)
-  const ipca = useSerie(buscarIpca)
-  const desemprego = useSerie(buscarDesemprego)
+ 
+const pib = useSerie(buscarPibAnual)
+const perCapita = useSerie(buscarPerCapita)
+const ipca = useSerie(buscarIpca)
+const desemprego = useSerie(buscarDesemprego)
+
+const ipcaMensal = useSerie(buscarIpcaMensal)
+const ipcaAno = useSerie(buscarIpcaAno)
+const producaoIndustrial = useSerie(buscarProducaoIndustrial)
+const producaoIndustrialSemAjuste = useSerie(buscarProducaoIndustrialSemAjuste)
+const comercioVarejista = useSerie(buscarComercioVarejista)
+const volumeServicos = useSerie(buscarVolumeServicos)
+
 
   
   const pibAtual = pib.dados.at(-1)
   const perCapitaAtual = perCapita.dados.at(-1)
   const ipcaAtual = ipca.dados.at(-1)
   const desempregoAtual = desemprego.dados.at(-1)
+
+  const ipcaMensalAtual = ipcaMensal.dados.at(-1)
+  const ipcaAnoAtual = ipcaAno.dados.at(-1)
+  const producaoIndustrialAtual = producaoIndustrial.dados.at(-1)
+  const producaoIndustrialSemAjusteAtual = producaoIndustrialSemAjuste.dados.at(-1)
+  const comercioVarejistaAtual = comercioVarejista.dados.at(-1)
+  const volumeServicosAtual = volumeServicos.dados.at(-1)
+
 
   const linhas = [
     {
@@ -284,6 +312,50 @@ export default function Economia() {
       valor: desempregoAtual ? `${num(desempregoAtual.valor, 1)}%` : statusDe(desemprego),
       ref: desempregoAtual && formatarTrimestreMovel(desempregoAtual.periodo),
     },
+{
+  nome: 'IPCA - variação mensal',
+  valor: ipcaMensalAtual
+    ? `${num(ipcaMensalAtual.valor)}%`
+    : statusDe(ipcaMensal),
+  ref: ipcaMensalAtual && mesAno(ipcaMensalAtual.periodo),
+},
+{
+  nome: 'IPCA - acumulado no ano',
+  valor: ipcaAnoAtual
+    ? `${num(ipcaAnoAtual.valor)}%`
+    : statusDe(ipcaAno),
+  ref: ipcaAnoAtual && mesAno(ipcaAnoAtual.periodo),
+},
+{
+  nome: 'Produção industrial',
+  valor: producaoIndustrialAtual
+    ? num(producaoIndustrialAtual.valor)
+    : statusDe(producaoIndustrial),
+  ref: producaoIndustrialAtual && mesAno(producaoIndustrialAtual.periodo),
+},
+{
+  nome: 'Produção industrial - sem ajuste',
+  valor: producaoIndustrialSemAjusteAtual
+    ? num(producaoIndustrialSemAjusteAtual.valor)
+    : statusDe(producaoIndustrialSemAjuste),
+  ref: producaoIndustrialSemAjusteAtual &&
+    mesAno(producaoIndustrialSemAjusteAtual.periodo),
+},
+{
+  nome: 'Volume de vendas do comércio',
+  valor: comercioVarejistaAtual
+    ? num(comercioVarejistaAtual.valor)
+    : statusDe(comercioVarejista),
+  ref: comercioVarejistaAtual && mesAno(comercioVarejistaAtual.periodo),
+},
+{
+  nome: 'Volume de serviços',
+  valor: volumeServicosAtual
+    ? num(volumeServicosAtual.valor)
+    : statusDe(volumeServicos),
+  ref: volumeServicosAtual && mesAno(volumeServicosAtual.periodo),
+},
+
   ]
 
   return (
@@ -424,8 +496,36 @@ export default function Economia() {
           </div>
         )}
 
-        {aba === 'Dados' && <DadosEconomia pib={pib} perCapita={perCapita} ipca={ipca} desemprego={desemprego} />}
-        {aba === 'Relatórios' && <RelatoriosEconomia pib={pib} perCapita={perCapita} ipca={ipca} desemprego={desemprego} />}
+        
+{aba === 'Dados' && (
+  <DadosEconomia
+    pib={pib}
+    perCapita={perCapita}
+    ipca={ipca}
+    desemprego={desemprego}
+    ipcaMensal={ipcaMensal}
+    ipcaAno={ipcaAno}
+    producaoIndustrial={producaoIndustrial}
+    producaoIndustrialSemAjuste={producaoIndustrialSemAjuste}
+    comercioVarejista={comercioVarejista}
+    volumeServicos={volumeServicos}
+  />
+)}
+
+{aba === 'Relatórios' && (
+  <RelatoriosEconomia
+    pib={pib}
+    perCapita={perCapita}
+    ipca={ipca}
+    desemprego={desemprego}
+    ipcaMensal={ipcaMensal}
+    ipcaAno={ipcaAno}
+    producaoIndustrial={producaoIndustrial}
+    producaoIndustrialSemAjuste={producaoIndustrialSemAjuste}
+    comercioVarejista={comercioVarejista}
+    volumeServicos={volumeServicos}
+  />
+)}
         </main>
 
         <footer className="economia-rodape">

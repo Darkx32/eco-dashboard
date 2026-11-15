@@ -39,8 +39,16 @@ async def pib_anual() -> dict:
     return await ibge_service.get_pib_anual()
 
 
-@router.get("/values")
-async def values(agregados_id: Annotated[int, Query(...)], variavel_id: Annotated[int, Query(...)]) -> dict:
-    data = await ibge_service.get_value_from_agregado_variavel_id(agregados_id, variavel_id)
 
-    return data;
+@router.get("/values")
+async def values(
+    agregados_id: Annotated[int, Query(...)],
+    variavel_id: Annotated[int, Query(...)],
+    classificacao: str | None = Query(default=None)
+) -> dict:
+
+    return await ibge_service.get_value_from_agregado_variavel_id(
+        agregados_id,
+        variavel_id,
+        classificacao
+    )

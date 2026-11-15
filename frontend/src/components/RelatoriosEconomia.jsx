@@ -8,12 +8,19 @@ import {
   gerarResumoRelatorio,
 } from '../utils/relatorioEconomia'
 
-export default function RelatoriosEconomia({ pib, perCapita, ipca, desemprego }) {
+
+export default function RelatoriosEconomia({
+  pib, perCapita, ipca, desemprego, ipcaMensal, ipcaAno, producaoIndustrial,
+  producaoIndustrialSemAjuste, comercioVarejista, volumeServicos
+}) {
   const [indicadorId, setIndicadorId] = useState('pib')
   const [inicio, setInicio] = useState('')
   const [fim, setFim] = useState('')
   const indicador = INDICADORES.find(({ id }) => id === indicadorId)
-  const serie = { pib, perCapita, ipca, desemprego }[indicadorId]
+  
+const serie = {
+  pib, perCapita, ipca, desemprego, ipcaMensal, ipcaAno, producaoIndustrial, 
+  producaoIndustrialSemAjuste, comercioVarejista, volumeServicos}[indicadorId]
   const periodos = [...new Set(serie.dados.map(({ periodo }) => String(periodo)))].sort()
   const relatorio = calcularRelatorio(serie.dados, inicio, fim)
   const status = serie.carregando
