@@ -1,17 +1,14 @@
-# Python
-__pycache__/
-*.py[oc]
+# Build
 build/
 dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
 
 # Node
 frontend/node_modules/
 frontend/dist/
+
+# Cloudflare
+.wrangler/
+frontend/.wrangler/
 
 # Environment
 .env
