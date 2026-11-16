@@ -20,7 +20,6 @@ Essa arquitetura simplifica o deploy, reduz latência e custos operacionais (sem
 eco-dashboard/
 ├── frontend/
 │   ├── public/
-│   │   ├── _redirects
 │   │   └── favicon.svg
 │   ├── src/
 │   │   ├── components/
@@ -147,8 +146,7 @@ npm run build    # Build de produção em frontend/dist/
 
 O projeto gera um bundle puramente estático em `frontend/dist/`, pronto para publicação no **Cloudflare Workers Assets** ou **Cloudflare Pages**:
 
-- **`frontend/wrangler.jsonc`:** configura o projeto (`name: "eco-dashboard"`), `compatibility_date` e o diretório de assets `./dist` com roteamento SPA (`single-page-application`).
-- **`frontend/public/_redirects`:** garante o fallback `/* /index.html 200` para o Cloudflare Pages.
+- **`frontend/wrangler.jsonc`:** configura o projeto (`name: "eco-dashboard"`), `compatibility_date` e o diretório de assets `./dist` com roteamento SPA (`single-page-application`), sem necessidade de `_redirects` (que causaria loop com o roteamento SPA do Cloudflare).
 
 ### Configuração de build (Cloudflare Pages / Workers)
 
