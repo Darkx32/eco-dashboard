@@ -31,13 +31,14 @@ export function calcularRelatorio(dados, inicio = '', fim = '') {
 export function formatarValorRelatorio(valor, unidade) {
   if (!Number.isFinite(valor)) return 'Indisponível'
   const numero = valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return unidade === 'R$' ? `R$ ${numero}` : `${numero}%`
+  if (unidade === 'R$') return `R$ ${numero}`
+  if (unidade === '%') return `${numero}%`
+  return numero
 }
 
 export function formatarVariacaoRelatorio(relatorio, unidade) {
   const valor = unidade === '%' ? relatorio.diferenca : relatorio.variacao
   if (valor == null || !Number.isFinite(valor)) return 'Não calculável'
-  // Arredondar antes do sinal evita exibir -0,00 para diferenças residuais.
   const numero = Number(valor.toFixed(2)).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -57,8 +58,10 @@ export function gerarResumoRelatorio(indicador, relatorio) {
   const comparacao = `${indicador.nome}: de ${valor(inicial.valor)} em ${periodo(inicial.periodo)} para ${valor(final.valor)} em ${periodo(final.periodo)}.`
   const diferenca = relatorio.diferenca
   if (diferenca === 0) return `${comparacao} Sem variação entre as duas referências.`
-  if (indicador.unidade === 'R$' && relatorio.variacao == null) {
-    return `${comparacao} Diferença nominal de ${valor(relatorio.diferenca)}; variação percentual não calculável com valor inicial zero.`
+  if (indicador.unidade !== '%' && relatorio.variacao == null) {
+    return indicador.unidade === 'R$'
+      ? `${comparacao} Diferença nominal de ${valor(relatorio.diferenca)}; variação percentual não calculável com valor inicial zero.`
+      : `${comparacao} Variação percentual não calculável com valor inicial zero.`
   }
 
   const movimento = diferenca > 0 ? 'Alta' : 'Queda'

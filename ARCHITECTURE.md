@@ -1,222 +1,165 @@
-# Arquitetura do Projeto --- Eco Dashboard
+# Arquitetura do Projeto — Eco Dashboard
 
 ## Visão geral
 
-O **Eco Dashboard** utiliza uma arquitetura separada entre frontend e
-backend:
+O **Eco Dashboard** adota uma arquitetura **100% frontend (SPA)** em React, consolidando no próprio navegador a comunicação com a API pública do IBGE, a limpeza/normalização dos dados econômicos e um sistema de cache temporário de 15 minutos — sem dependência de backend em Python.
 
--   **Frontend:** React.js
--   **Backend:** FastAPI (Python)
--   **Gerenciamento do frontend:** npm
--   **Gerenciamento do backend:** uv + `pyproject.toml`
--   **Comunicação:** API HTTP/JSON
+- **Interface:** React 19 + Vite + Tailwind CSS + Recharts
+- **Camada de dados e limpeza:** Módulos JavaScript dedicados (`src/services/ibge.js`, `src/services/cache.js` e `src/services/api.js`)
+- **Catálogo dinâmico:** Configuração declarativa de indicadores (`src/data/indicadores.js`)
+- **Gerenciamento de pacotes:** npm
+- **Hospedagem / Deploy:** Estático / Edge no Cloudflare (Cloudflare Pages ou Cloudflare Workers Assets)
 
-A separação permite que frontend e backend evoluam de forma
-independente, mantendo responsabilidades bem definidas.
+Essa arquitetura simplifica o deploy, reduz latência e custos operacionais (sem servidor intermediário para manter) e permite publicar o dashboard diretamente na borda da rede via Cloudflare.
+
+---
 
 ## Estrutura do projeto
 
-``` text
+```text
 eco-dashboard/
 ├── frontend/
 │   ├── public/
+│   │   ├── _redirects
+│   │   └── favicon.svg
 │   ├── src/
-│   │   ├── assets/
 │   │   ├── components/
+│   │   │   ├── DadosEconomia.jsx
+│   │   │   └── RelatoriosEconomia.jsx
+│   │   ├── data/
+│   │   │   └── indicadores.js
+│   │   ├── hooks/
+│   │   │   └── useLocalStorage.js
 │   │   ├── pages/
-│   │   └── App.jsx
+│   │   │   ├── Economia.css
+│   │   │   └── Economia.jsx
+│   │   ├── services/
+│   │   │   ├── api.js
+│   │   │   ├── cache.js
+│   │   │   └── ibge.js
+│   │   ├── utils/
+│   │   │   ├── dadosEconomia.js
+│   │   │   └── relatorioEconomia.js
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   ├── eslint.config.js
+│   ├── index.html
 │   ├── package.json
-│   └── vite.config.js
-│
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py
-│   │   ├── routers/
-│   │   ├── schemas/
-│   │   ├── models/
-│   │   └── services/
-│   ├── .venv/
-│   ├── pyproject.toml
-│   └── uv.lock
+│   ├── vite.config.js
+│   └── wrangler.jsonc
 │
 ├── .gitignore
+├── ARCHITECTURE.md
+├── Makefile
 └── README.md
 ```
 
-> As pastas internas do backend e frontend devem ser criadas conforme a
-> necessidade. Não é necessário manter pastas vazias apenas para seguir
-> esta estrutura.
+---
 
 ## Frontend
 
-O frontend é responsável pela interface do usuário e pela apresentação
-dos dados fornecidos pela API.
+As consultas partem dos componentes React guiados pelo catálogo dinâmico `INDICADORES`, passam pela camada de cache temporário (15 minutos) e, quando não há entrada válida em cache, são buscadas na API de Agregados v3 do IBGE, limpas em JavaScript e armazenadas antes de chegar à UI:
 
-### `src/components/`
-
-Componentes reutilizáveis da interface, como:
-
--   cards;
--   tabelas;
--   gráficos;
--   botões;
--   menus;
--   inputs.
-
-### `src/pages/`
-
-Páginas completas da aplicação, como:
-
-``` text
-pages/
-├── Dashboard.jsx
-├── Login.jsx
-└── Settings.jsx
+```text
+┌──────────────────────────────────────────────┐
+│              React Components                │
+│  (Economia, DadosEconomia, Relatorios...)    │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│       API & Indicadores Dinâmicos            │
+│   (src/services/api.js + indicadores.js)     │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────┐
+│          Cache Temporário (15 min)           │
+│  (src/services/cache.js: Memória +           │
+│   localStorage + deduplicação em voo)        │
+└──────────────────────┬───────────────────────┘
+                       │ cache miss / expirado
+                       ▼
+┌──────────────────────────────────────────────┐
+│              Módulo IBGE JS                  │
+│  (src/services/ibge.js: Limpeza, Conversão   │
+│   Monetária e Consolidação do PIB Anual)     │
+└──────────────────────┬───────────────────────┘
+                       │ HTTPS / JSON
+                       ▼
+┌──────────────────────────────────────────────┐
+│                  API IBGE                    │
+│     https://servicodados.ibge.gov.br/api/v3  │
+└──────────────────────────────────────────────┘
 ```
 
-### `src/assets/`
+---
 
-Recursos estáticos utilizados pelo React, como imagens, ícones e outros
-arquivos importados pela aplicação.
+## Módulos principais
 
-## Backend
+### `src/services/ibge.js`
 
-Todo o código Python da API fica dentro do pacote `app`.
+Responsável por toda a integração e higienização de dados que anteriormente ficava no backend Python:
 
-### `app/main.py`
+- **Consumo da API de Agregados v3 do IBGE** (`https://servicodados.ibge.gov.br/api/v3/agregados`).
+- **Limpeza de valores:** converte marcadores ausentes ou não numéricos do IBGE (`".."`, `"..."`, `"-"`, `"x"`, `""`, `NaN`, `Infinity`) para `null` com `converterNumero`, descartando registros inválidos e ordenando as séries cronologicamente.
+- **Normalização de unidades e conversão monetária:** traduz rótulos de unidade (`UNIT_TRANSFORM`) e multiplica automaticamente séries expressas em `"Mil Reais"`, `"Milhões de Reais"` ou `"Bilhões de Reais"` para `"Reais"` com controle de precisão decimal (`multiplicarComPrecisao`).
+- **Consolidação do PIB anual (`completarPibAnual`):** preserva os anos já publicados na série anual (agregado `6784`, variável `9808`) e acrescenta anos posteriores que já possuam os 4 trimestres fechados na série trimestral (agregado `1846`, variável `585`, classificação `11255[90707]`), evitando exibir anos incompletos.
+- **Limpeza de metadados (`limparMetadadosAgregado`):** remove campos verbosos (`nivelTerritorial`, `sumarizacao`) e normaliza unidades de variáveis e categorias.
 
-Ponto de entrada da aplicação FastAPI.
+### `src/services/cache.js`
 
-Exemplo:
+Sistema de cache temporário com **TTL padrão de 15 minutos (`CACHE_TTL_MS = 15 * 60 * 1000`)**:
 
-``` python
-from fastapi import FastAPI
+- **Duas camadas de armazenamento:** cache rápido em memória (`Map`) combinado com persistência no `localStorage` do navegador (sob o prefixo `eco-api-cache:v1:`), sobrevivendo a recarregamentos da página dentro da janela de 15 minutos.
+- **Expiração e limpeza automática:** valida o timestamp `expiraEm` a cada leitura, removendo entradas expiradas ou corrompidas e liberando espaço automaticamente em caso de limite de quota.
+- **Deduplicação de requisições em andamento:** múltiplas chamadas simultâneas para a mesma chave (`comCache`) compartilham a mesma `Promise` em voo, evitando requisições duplicadas à API do IBGE.
 
-app = FastAPI()
+### `src/data/indicadores.js`
 
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
+Catálogo dinâmico central dos indicadores econômicos exibidos na aplicação:
+
+- Define para cada indicador seus parâmetros de consulta no IBGE (`agregadoId`, `variavelId`, `classificacao` e, quando aplicável, `complementoTrimestral`), metadados (`nome`, `nomeTabela`, `unidade`, `frequencia`, `descricao`) e regras de exibição (`formato`, `casasDecimais`, `destaqueKpi`, `detalheKpi`, `exibirVariacaoKpi`).
+- A página `Economia.jsx` e os componentes `DadosEconomia.jsx` e `RelatoriosEconomia.jsx` consomem esse catálogo dinamicamente, sem listas fixas de hooks ou chamadas manuais por indicador.
+
+### `src/services/api.js`
+
+Fachada consumida pelos componentes e hooks React, expondo `buscarIndicador`, `buscarSerie`, `buscarPibAnual`, `buscarAgregados`, `buscarInfoAgregado` e controles do cache (`limparCache`, `CACHE_TTL_MS`).
+
+---
+
+## Desenvolvimento local
+
+A partir da raiz do projeto (via `Makefile`) ou dentro de `frontend/`:
+
+```bash
+cd frontend
+npm install
+npm run dev      # Servidor de desenvolvimento Vite (http://localhost:5173)
+npm run lint     # Verificação estática com ESLint
+npm run build    # Build de produção em frontend/dist/
 ```
 
-Durante o desenvolvimento, a API pode ser executada a partir de
-`backend/` com:
+---
 
-``` bash
-uv run fastapi dev app/main.py
+## Deploy no Cloudflare
+
+O projeto gera um bundle puramente estático em `frontend/dist/`, pronto para publicação no **Cloudflare Workers Assets** ou **Cloudflare Pages**:
+
+- **`frontend/wrangler.jsonc`:** configura o projeto (`name: "eco-dashboard"`), `compatibility_date` e o diretório de assets `./dist` com roteamento SPA (`single-page-application`).
+- **`frontend/public/_redirects`:** garante o fallback `/* /index.html 200` para o Cloudflare Pages.
+
+### Configuração de build (Cloudflare Pages / Workers)
+
+- **Diretório raiz (Root directory):** `frontend`
+- **Comando de build:** `npm run build`
+- **Diretório de saída (Output directory):** `dist`
+
+Para publicar manualmente via Wrangler CLI a partir de `frontend/`:
+
+```bash
+cd frontend
+npm run build
+npx wrangler deploy
 ```
-
-Também é possível executá-la diretamente com Uvicorn:
-
-``` bash
-uv run uvicorn app.main:app --reload
-```
-
-### `app/routers/`
-
-Define os endpoints da API, separados por domínio ou funcionalidade.
-
-Exemplo:
-
-``` text
-routers/
-├── dashboard.py
-└── users.py
-```
-
-O objetivo é evitar concentrar todas as rotas em `main.py`.
-
-
-## Comunicação entre frontend e backend
-
-```
-O React não acessa diretamente banco de dados ou regras internas do
-backend.
-
-O fluxo principal é:
-
-``` text
-┌──────────────┐
-│    React     │
-│   Frontend   │
-└──────┬───────┘
-       │
-       │ HTTP / JSON
-       ▼
-┌──────────────┐
-│   FastAPI    │
-│   Backend    │
-└──────┬───────┘
-       │
-       ├── Banco de dados
-       └── API INEP Economia
-```
-
-Durante o desenvolvimento, os serviços podem rodar separadamente:
-
-``` text
-React / Vite
-http://localhost:5173
-
-        │
-        ▼
-
-FastAPI
-http://localhost:8000
-```
-
-## Dependências Python
-
-As dependências do backend são declaradas em `backend/pyproject.toml`.
-
-Exemplo:
-
-``` toml
-[project]
-name = "backend"
-version = "0.1.0"
-requires-python = ">=3.12"
-
-dependencies = [
-    "fastapi[standard]",
-]
-
-[tool.uv]
-package = false
-```
-
-O ambiente virtual local fica em:
-
-``` text
-backend/.venv/
-```
-
-Para sincronizar as dependências:
-
-``` bash
-cd backend
-uv sync
-```
-
-Para adicionar uma dependência:
-
-``` bash
-uv add nome-da-dependencia
-```
-
-O `.venv` não deve ser versionado no Git.
-
-## Evolução
-
-A estrutura inicial pode ser mínima:
-
-``` text
-backend/
-└── app/
-    ├── __init__.py
-    └── main.py
-```
-
-Conforme o projeto crescer, as responsabilidades podem ser extraídas
-gradualmente para `routers/`, `schemas/` e `models/`.

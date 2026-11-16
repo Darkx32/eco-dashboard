@@ -1,4 +1,13 @@
-run-backend:
-	cd backend; \
-	uv run fastapi dev app/main.py; \
-	wait;
+.PHONY: dev build lint preview
+
+dev:
+	cd frontend && npm run dev
+
+build:
+	cd frontend && npm run build
+
+lint:
+	cd frontend && npm run lint
+
+preview:
+	cd frontend && npm run preview

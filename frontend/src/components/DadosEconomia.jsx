@@ -1,57 +1,28 @@
-
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { INDICADORES } from '../data/indicadores'
 import {
   filtrarSerie,
   formatarPeriodo,
-  gerarCsv
+  gerarCsv,
 } from '../utils/dadosEconomia'
 
-export default function DadosEconomia({
-  pib,
-  perCapita,
-  ipca,
-  desemprego,
-  ipcaMensal,
-  ipcaAno,
-  producaoIndustrial,
-  producaoIndustrialSemAjuste,
-  comercioVarejista,
-  volumeServicos
-}) {
-  // Preferências salvas no navegador
+const SERIE_VAZIA = { dados: [], carregando: false, erro: null }
+
+export default function DadosEconomia({ series, ...seriesIndividuais }) {
   const [indicadorId, setIndicadorId] = useLocalStorage(
     'eco-dados-indicador',
-    'pib'
+    INDICADORES[0].id
   )
 
-  const [inicio, setInicio] = useLocalStorage(
-    'eco-dados-inicio',
-    ''
-  )
+  const [inicio, setInicio] = useLocalStorage('eco-dados-inicio', '')
+  const [fim, setFim] = useLocalStorage('eco-dados-fim', '')
 
-  const [fim, setFim] = useLocalStorage(
-    'eco-dados-fim',
-    ''
-  )
-
-  const indicador = INDICADORES.find(({ id }) => id === indicadorId)
-
-  const serie = {
-    pib,
-    perCapita,
-    ipca,
-    desemprego,
-    ipcaMensal,
-    ipcaAno,
-    producaoIndustrial,
-    producaoIndustrialSemAjuste,
-    comercioVarejista,
-    volumeServicos
-  }[indicadorId]
+  const indicador = INDICADORES.find(({ id }) => id === indicadorId) ?? INDICADORES[0]
+  const mapaSeries = series ?? seriesIndividuais
+  const serie = mapaSeries[indicador.id] ?? SERIE_VAZIA
 
   const periodos = [
-    ...new Set(serie.dados.map(({ periodo }) => String(periodo)))
+    ...new Set(serie.dados.map(({ periodo }) => String(periodo))),
   ].sort()
 
   const dados = filtrarSerie(serie.dados, inicio, fim)
@@ -67,16 +38,15 @@ export default function DadosEconomia({
           : null
 
   function baixarCsv() {
-    const blob = new Blob(
-      [gerarCsv(indicador, dados)],
-      { type: 'text/csv;charset=utf-8;' }
-    )
+    const blob = new Blob([gerarCsv(indicador, dados)], {
+      type: 'text/csv;charset=utf-8;',
+    })
 
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
     link.href = url
-    link.download = `eco-${indicadorId}-${inicio || periodos[0]}-${fim || periodos.at(-1)}.csv`
+    link.download = `eco-${indicador.id}-${inicio || periodos[0]}-${fim || periodos.at(-1)}.csv`
 
     document.body.appendChild(link)
     link.click()
@@ -92,7 +62,6 @@ export default function DadosEconomia({
 
   return (
     <section className="economia-dados" aria-labelledby="economia-dados-titulo">
-
       <div className="economia-dados-cabecalho">
         <div>
           <h2 id="economia-dados-titulo" className="economia-secao-titulo">
@@ -111,13 +80,11 @@ export default function DadosEconomia({
       </div>
 
       <div className="economia-filtros">
-
         <label className="economia-campo" htmlFor="economia-indicador">
           Indicador
-
           <select
             id="economia-indicador"
-            value={indicadorId}
+            value={indicador.id}
             onChange={(event) => {
               setIndicadorId(event.target.value)
               limparPeriodo()
@@ -133,7 +100,6 @@ export default function DadosEconomia({
 
         <label className="economia-campo" htmlFor="economia-inicio">
           De
-
           <select
             id="economia-inicio"
             value={inicio}
@@ -163,7 +129,6 @@ export default function DadosEconomia({
 
         <label className="economia-campo" htmlFor="economia-fim">
           Até
-
           <select
             id="economia-fim"
             value={fim}
@@ -199,7 +164,6 @@ export default function DadosEconomia({
         >
           Limpar período
         </button>
-
       </div>
 
       <p className="economia-legenda">{indicador.descricao}</p>
@@ -211,7 +175,6 @@ export default function DadosEconomia({
       {!status && (
         <div className="economia-tabela-rolagem">
           <table className="economia-tabela economia-tabela-dados">
-
             <caption className="economia-sr-only">
               {indicador.nome} — valores por período, em ordem cronológica
             </caption>
@@ -235,7 +198,7 @@ export default function DadosEconomia({
                     {Number.isFinite(valor)
                       ? valor.toLocaleString('pt-BR', {
                           minimumFractionDigits: 2,
-                          maximumFractionDigits: 20
+                          maximumFractionDigits: 20,
                         })
                       : 'Indisponível'}
                   </td>
@@ -244,13 +207,11 @@ export default function DadosEconomia({
                 </tr>
               ))}
             </tbody>
-
           </table>
         </div>
       )}
 
       <p className="economia-nota">Fonte: IBGE.</p>
-
     </section>
   )
 }

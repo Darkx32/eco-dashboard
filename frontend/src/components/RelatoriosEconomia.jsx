@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import { INDICADORES } from '../data/indicadores'
 import { formatarPeriodo } from '../utils/dadosEconomia'
 import {
@@ -8,19 +8,20 @@ import {
   gerarResumoRelatorio,
 } from '../utils/relatorioEconomia'
 
+const SERIE_VAZIA = { dados: [], carregando: false, erro: null }
 
-export default function RelatoriosEconomia({
-  pib, perCapita, ipca, desemprego, ipcaMensal, ipcaAno, producaoIndustrial,
-  producaoIndustrialSemAjuste, comercioVarejista, volumeServicos
-}) {
-  const [indicadorId, setIndicadorId] = useState('pib')
-  const [inicio, setInicio] = useState('')
-  const [fim, setFim] = useState('')
-  const indicador = INDICADORES.find(({ id }) => id === indicadorId)
-  
-const serie = {
-  pib, perCapita, ipca, desemprego, ipcaMensal, ipcaAno, producaoIndustrial, 
-  producaoIndustrialSemAjuste, comercioVarejista, volumeServicos}[indicadorId]
+export default function RelatoriosEconomia({ series, ...seriesIndividuais }) {
+  const [indicadorId, setIndicadorId] = useLocalStorage(
+    'eco-relatorio-indicador',
+    INDICADORES[0].id
+  )
+  const [inicio, setInicio] = useLocalStorage('eco-relatorio-inicio', '')
+  const [fim, setFim] = useLocalStorage('eco-relatorio-fim', '')
+
+  const indicador = INDICADORES.find(({ id }) => id === indicadorId) ?? INDICADORES[0]
+  const mapaSeries = series ?? seriesIndividuais
+  const serie = mapaSeries[indicador.id] ?? SERIE_VAZIA
+
   const periodos = [...new Set(serie.dados.map(({ periodo }) => String(periodo)))].sort()
   const relatorio = calcularRelatorio(serie.dados, inicio, fim)
   const status = serie.carregando
@@ -54,7 +55,7 @@ const serie = {
       <div className="economia-filtros economia-relatorio-controles">
         <label className="economia-campo" htmlFor="relatorio-indicador">
           Indicador
-          <select id="relatorio-indicador" value={indicadorId} onChange={(event) => {
+          <select id="relatorio-indicador" value={indicador.id} onChange={(event) => {
             setIndicadorId(event.target.value)
             limparPeriodo()
           }}>
@@ -112,7 +113,13 @@ const serie = {
               <span>{periodo(relatorio.final.periodo)}</span>
             </div>
             <div>
-              <dt>{indicador.unidade === '%' ? 'Diferença entre taxas' : 'Variação nominal'}</dt>
+              <dt>
+                {indicador.unidade === '%'
+                  ? 'Diferença entre taxas'
+                  : indicador.unidade === 'R$'
+                    ? 'Variação nominal'
+                    : 'Variação no período'}
+              </dt>
               <dd className="economia-relatorio-variacao">{relatorio.comparavel ? formatarVariacaoRelatorio(relatorio, indicador.unidade) : '—'}</dd>
               <span>{!relatorio.comparavel ? 'Um registro no período' : indicador.unidade === '%' ? 'Pontos percentuais' : 'Entre o início e o fim'}</span>
             </div>
