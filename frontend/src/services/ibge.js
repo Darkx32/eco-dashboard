@@ -344,6 +344,208 @@ export async function obterDadosPibAnual(opcoes = {}) {
   )
 }
 
+function obterPopulacaoParaAno(ano, anosDisponiveis, popPorAno) {
+  if (Object.hasOwn(popPorAno, ano)) {
+    return popPorAno[ano]
+  }
+
+  const anoNum = Number(ano)
+  let anterior = null
+  let proximo = null
+
+  for (const candidato of anosDisponiveis) {
+    if (candidato < anoNum) {
+      anterior = candidato
+    } else if (candidato > anoNum) {
+      proximo = candidato
+      break
+    }
+  }
+
+  if (anterior !== null && proximo !== null) {
+    const pAnt = popPorAno[String(anterior)]
+    const pProx = popPorAno[String(proximo)]
+    return pAnt + ((anoNum - anterior) / (proximo - anterior)) * (pProx - pAnt)
+  }
+
+  if (anterior !== null) return popPorAno[String(anterior)]
+  if (proximo !== null) return popPorAno[String(proximo)]
+  return null
+}
+
+export async function obterDadosPibPerCapitaBahia(opcoes = {}) {
+  const {
+    ttlMs = CACHE_TTL_MS,
+    forcarAtualizacao = false,
+    fetchFn = globalThis.fetch,
+    agora,
+  } = opcoes
+
+  return comCache(
+    'ibge:pib-per-capita-bahia',
+    async () => {
+      const [pibBahia, popBahia] = await Promise.all([
+        buscarValoresAgregado(5938, 37, null, {
+          localidades: 'N3[29]',
+          ttlMs,
+          forcarAtualizacao,
+          fetchFn,
+          agora,
+        }),
+        buscarValoresAgregado(6579, 9324, null, {
+          localidades: 'N3[29]',
+          ttlMs,
+          forcarAtualizacao,
+          fetchFn,
+          agora,
+        }),
+      ])
+
+      const popPorAno = Object.fromEntries(
+        popBahia.serie.map(({ periodo, valor }) => [String(periodo), valor])
+      )
+      const anosDisponiveis = popBahia.serie
+        .map(({ periodo }) => Number(periodo))
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b)
+
+      const serie = pibBahia.serie
+        .map(({ periodo, valor }) => {
+          const populacao = obterPopulacaoParaAno(periodo, anosDisponiveis, popPorAno)
+          if (!populacao || populacao <= 0) return null
+          return {
+            periodo,
+            valor: Number((valor / populacao).toFixed(2)),
+          }
+        })
+        .filter(Boolean)
+
+      return {
+        id: 'perCapitaBahia',
+        variavel: 'PIB per capita da Bahia (estimado)',
+        unidade: 'Reais',
+        serie,
+      }
+    },
+    { ttlMs, forcarAtualizacao, agora }
+  )
+}
+
+export async function buscarPibMunicipiosBahia(opcoes = {}) {
+  const {
+    ttlMs = CACHE_TTL_MS,
+    forcarAtualizacao = false,
+    fetchFn = globalThis.fetch,
+    agora,
+  } = opcoes
+
+  const url = `${IBGE_URL}/5938/periodos/last%201/variaveis/37?localidades=N6[N3[29]]`
+
+  return comCache(
+    'ibge:municipios-bahia:pib-atual',
+    async () => {
+      const dadosBrutos = await requisitarJsonIbge(url, fetchFn)
+      if (!Array.isArray(dadosBrutos) || dadosBrutos.length === 0) {
+        throw new Error('O IBGE não retornou dados municipais da Bahia.')
+      }
+
+      const bloco = dadosBrutos[0]
+      const unit = obterConfiguracaoMoeda(bloco.unidade)
+      const multiplicador = unit ? unit.multiplier : 1
+      const series = bloco.resultados?.[0]?.series ?? []
+
+      const lista = series
+        .map((item) => {
+          const entradas = Object.entries(item.serie ?? {})
+          if (entradas.length === 0) return null
+          const [periodo, valorBruto] = entradas[0]
+          const numero = converterNumero(valorBruto)
+          if (numero === null) return null
+
+          return {
+            id: String(item.localidade.id),
+            nome: String(item.localidade.nome).replace(/\s*-\s*BA$/i, ''),
+            periodo,
+            valor: multiplicarComPrecisao(numero, multiplicador),
+          }
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.valor - a.valor)
+
+      const total = lista.reduce((soma, item) => soma + item.valor, 0)
+      const periodo = lista[0]?.periodo ?? ''
+
+      const municipios = lista.map((item, indice) => ({
+        ...item,
+        posicao: indice + 1,
+        participacao: total > 0 ? (item.valor / total) * 100 : 0,
+      }))
+
+      return { periodo, total, municipios }
+    },
+    { ttlMs, forcarAtualizacao, agora }
+  )
+}
+
+export async function buscarSerieMunicipioBahia(municipioId, opcoes = {}) {
+  const {
+    ttlMs = CACHE_TTL_MS,
+    forcarAtualizacao = false,
+    fetchFn = globalThis.fetch,
+    agora,
+  } = opcoes
+
+  const idLimpo = String(municipioId)
+
+  return comCache(
+    `ibge:municipio-bahia:${idLimpo}`,
+    async () => {
+      const [pib, pop] = await Promise.all([
+        buscarValoresAgregado(5938, 37, null, {
+          localidades: `N6[${idLimpo}]`,
+          ttlMs,
+          forcarAtualizacao,
+          fetchFn,
+          agora,
+        }),
+        buscarValoresAgregado(6579, 9324, null, {
+          localidades: `N6[${idLimpo}]`,
+          ttlMs,
+          forcarAtualizacao,
+          fetchFn,
+          agora,
+        }),
+      ])
+
+      const popPorAno = Object.fromEntries(
+        pop.serie.map(({ periodo, valor }) => [String(periodo), valor])
+      )
+      const anosDisponiveis = pop.serie
+        .map(({ periodo }) => Number(periodo))
+        .filter(Number.isFinite)
+        .sort((a, b) => a - b)
+
+      const perCapita = pib.serie
+        .map(({ periodo, valor }) => {
+          const populacao = obterPopulacaoParaAno(periodo, anosDisponiveis, popPorAno)
+          if (!populacao || populacao <= 0) return null
+          return {
+            periodo,
+            valor: Number((valor / populacao).toFixed(2)),
+          }
+        })
+        .filter(Boolean)
+
+      return {
+        id: idLimpo,
+        pib: pib.serie,
+        perCapita,
+      }
+    },
+    { ttlMs, forcarAtualizacao, agora }
+  )
+}
+
 export async function buscarPibAnual(opcoes = {}) {
   const dados = await obterDadosPibAnual(opcoes)
   return dados.serie

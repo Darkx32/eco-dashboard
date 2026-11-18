@@ -51,7 +51,7 @@
 .economia-aba--ativa::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: var(--economia-destaque); content: ''; }
 .economia-aba:focus-visible { outline-offset: -3px; }
 .economia-conteudo { min-height: 380px; }
-.economia-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 30px 0; }
+.economia-resumo { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 30px 0; }
 .economia-kpi { min-width: 0; padding: 4px 26px; border-left: 1px solid var(--economia-grade); }
 .economia-kpi:first-child { padding-left: 0; border-left: 0; }
 .economia-kpi:last-child { padding-right: 0; }
@@ -63,9 +63,9 @@
 .economia-variacao--baixa { color: var(--economia-baixa); }
 .economia-status { margin: 0; color: var(--economia-eixo); font-size: 13px; line-height: 1.7; }
 .economia-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px; padding: 36px 0 44px; }
-.economia-grade--panorama { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.economia-grade--panorama { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.economia-graficos-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; min-width: 0; align-content: start; }
 .economia-secao { min-width: 0; }
-.economia-secao--larga { grid-column: 1 / -1; border-top: 1px solid var(--economia-grade); padding-top: 32px; }
 .economia-secao-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .economia-secao-titulo { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 400; line-height: 1.3; letter-spacing: -.4px; }
 .economia-legenda { margin: 8px 0 0; color: var(--economia-eixo); font-size: 12px; line-height: 1.7; }
@@ -75,6 +75,10 @@
 .economia-periodo-botao:focus-visible { outline-offset: 1px; }
 .economia-periodo-botao--ativo { background: var(--economia-destaque); color: var(--economia-papel); font-weight: 600; }
 .economia-periodo-botao--ativo:hover { background: var(--economia-destaque); color: var(--economia-papel); }
+.economia-ipca-comparacoes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; }
+.economia-ipca-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--economia-grade); border-radius: 6px; background: transparent; color: var(--economia-tinta); font-size: 11px; }
+.economia-ipca-chip--base { border-color: var(--economia-destaque); color: var(--economia-destaque); font-weight: 600; }
+.economia-ipca-select { padding: 4px 8px; border: 1px solid var(--economia-grade); border-radius: 6px; background: var(--economia-papel); color: var(--economia-eixo); font: inherit; font-size: 11px; cursor: pointer; }
 .economia-grafico { height: 292px; margin-top: 28px; }
 .economia-grafico-status { display: flex; align-items: center; justify-content: center; height: 100%; padding: 20px; border: 1px dashed var(--economia-grade); color: var(--economia-eixo); font-size: 13px; line-height: 1.7; text-align: center; }
 .economia-tabela-secao { padding-left: 30px; border-left: 1px solid var(--economia-grade); }
@@ -134,6 +138,21 @@
 .economia-relatorio-registros .economia-tabela-rolagem { margin-top: 20px; }
 .economia-relatorio-rodape { margin-top: 24px; color: var(--economia-eixo); font-size: 11px; line-height: 1.8; }
 .economia-relatorio-rodape p { margin: 4px 0 0; }
+
+.economia-municipios { padding: 36px 0 44px; }
+.economia-busca-municipio { min-width: 280px; }
+.economia-busca-municipio input { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--economia-grade); border-radius: 0; background: var(--economia-papel); color: var(--economia-tinta); font: inherit; font-size: 14px; }
+.economia-municipio-detalhe { min-width: 0; }
+.economia-municipio-resumo { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--economia-grade); }
+.economia-municipio-metricas { display: flex; flex-wrap: wrap; gap: 24px; }
+.economia-municipio-metricas strong { display: block; margin-top: 4px; font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.economia-tabela-municipios { max-height: 560px; overflow-y: auto; }
+.economia-municipio-linha { cursor: pointer; }
+.economia-municipio-linha:hover { background: var(--economia-realce); }
+.economia-municipio-botao { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
+.economia-municipio-linha:hover .economia-municipio-botao { color: var(--economia-destaque); text-decoration: underline; text-underline-offset: 4px; }
+.economia-municipio-linha--ativa { background: var(--economia-realce); color: var(--economia-destaque); }
+.economia-municipio-linha--ativa .economia-municipio-botao { font-weight: 600; }
 
 @media (max-width: 900px) {
   .economia-container { padding: 0 28px; }

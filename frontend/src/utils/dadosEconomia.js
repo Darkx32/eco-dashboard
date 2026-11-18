@@ -14,6 +14,10 @@ export function formatarMoeda(n, casas = 0) {
   return `R$ ${formatarNumero(n, casas)}`
 }
 
+export function formatarBilhoes(n, casas = 1) {
+  return `R$ ${formatarNumero(n / 1e9, casas)} bi`
+}
+
 export function formatarTrilhoes(n, casas = 1) {
   return `R$ ${formatarNumero(n / 1e12, casas)} tri`
 }
@@ -23,6 +27,14 @@ export function formatarMesAno(periodo) {
   if (codigo.length !== 6) return codigo
   const mes = MESES[Number(codigo.slice(4, 6)) - 1]
   return mes ? `${mes}/${codigo.slice(2, 4)}` : codigo
+}
+
+export function formatarTrimestre(periodo) {
+  const codigo = String(periodo ?? '')
+  if (codigo.length !== 6) return codigo
+  const ano = codigo.slice(0, 4)
+  const trimestre = Number(codigo.slice(4, 6))
+  return `${trimestre}º tri/${ano}`
 }
 
 export function formatarTrimestreMovel(periodo) {
@@ -36,6 +48,7 @@ export function formatarTrimestreMovel(periodo) {
 
 export function formatarPeriodo(periodo, frequencia) {
   if (frequencia === 'Trimestre móvel') return formatarTrimestreMovel(periodo)
+  if (frequencia === 'Trimestral') return formatarTrimestre(periodo)
   const codigo = String(periodo)
   return codigo.length === 6 ? `${codigo.slice(4, 6)}/${codigo.slice(0, 4)}` : codigo
 }
@@ -44,6 +57,7 @@ export function formatarReferenciaIndicador(periodo, frequencia) {
   if (periodo == null || periodo === '') return ''
   if (frequencia === 'Anual') return String(periodo)
   if (frequencia === 'Trimestre móvel') return formatarTrimestreMovel(periodo)
+  if (frequencia === 'Trimestral') return formatarTrimestre(periodo)
   if (frequencia === 'Mensal') return formatarMesAno(periodo)
   return formatarPeriodo(periodo, frequencia)
 }
@@ -52,6 +66,9 @@ export function formatarValorIndicador(valor, indicador = {}) {
   if (!Number.isFinite(valor)) return 'Indisponível'
 
   const formato = indicador.formato
+  if (formato === 'bilhoes') {
+    return formatarBilhoes(valor, indicador.casasDecimais ?? 1)
+  }
   if (formato === 'trilhoes') {
     return formatarTrilhoes(valor, indicador.casasDecimais ?? 1)
   }

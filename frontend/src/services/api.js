@@ -3,10 +3,13 @@ import {
   buscarAgregados,
   buscarInfoAgregado,
   buscarPibAnual,
+  buscarPibMunicipiosBahia,
+  buscarSerieMunicipioBahia,
   buscarValoresAgregado,
   completarPibAnual,
   converterNumero,
   obterDadosPibAnual,
+  obterDadosPibPerCapitaBahia,
 } from './ibge.js'
 
 export async function buscarSerie(agregadoId, variavelId, classificacao = null, opcoes = {}) {
@@ -19,14 +22,23 @@ export async function buscarIndicador(indicador, opcoes = {}) {
     throw new Error('Configuração de indicador inválida.')
   }
 
-  if (indicador.complementoTrimestral || indicador.id === 'pib') {
-    const complemento = indicador.complementoTrimestral ?? {}
+  if (indicador.calculo === 'pibPerCapitaBahia') {
+    const resposta = await obterDadosPibPerCapitaBahia(opcoes)
+    return {
+      dados: resposta.serie,
+      variavel: resposta.variavel,
+      unidade: resposta.unidade,
+    }
+  }
+
+  if (indicador.complementoTrimestral) {
+    const complemento = indicador.complementoTrimestral
     const resposta = await obterDadosPibAnual({
-      agregadoAnualId: indicador.agregadoId ?? 6784,
-      variavelAnualId: indicador.variavelId ?? 9808,
-      agregadoTrimestralId: complemento.agregadoId ?? 1846,
-      variavelTrimestralId: complemento.variavelId ?? 585,
-      classificacaoTrimestral: complemento.classificacao ?? '11255[90707]',
+      agregadoAnualId: indicador.agregadoId,
+      variavelAnualId: indicador.variavelId,
+      agregadoTrimestralId: complemento.agregadoId,
+      variavelTrimestralId: complemento.variavelId,
+      classificacaoTrimestral: complemento.classificacao,
       periodosTrimestral: complemento.periodos ?? 'all',
       ...opcoes,
     })
@@ -42,7 +54,10 @@ export async function buscarIndicador(indicador, opcoes = {}) {
     indicador.agregadoId,
     indicador.variavelId,
     indicador.classificacao ?? null,
-    opcoes
+    {
+      localidades: indicador.localidade ?? 'BR',
+      ...opcoes,
+    }
   )
 
   return {
@@ -57,6 +72,8 @@ export {
   buscarAgregados,
   buscarInfoAgregado,
   buscarPibAnual,
+  buscarPibMunicipiosBahia,
+  buscarSerieMunicipioBahia,
   completarPibAnual,
   converterNumero,
   limparCache,
