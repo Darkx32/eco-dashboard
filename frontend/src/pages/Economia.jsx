@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -12,8 +13,9 @@ import {
   YAxis,
 } from 'recharts'
 import { INDICADORES } from '../data/indicadores'
-import { buscarIndicador } from '../services/api'
+import { buscarIndicador, buscarSerie } from '../services/api'
 import DadosEconomia from '../components/DadosEconomia'
+import MunicipiosBahia from '../components/MunicipiosBahia'
 import RelatoriosEconomia from '../components/RelatoriosEconomia'
 import {
   calcularCrescimento,
@@ -21,13 +23,13 @@ import {
   formatarMoeda,
   formatarNumero,
   formatarReferenciaIndicador,
-  formatarTrimestreMovel,
+  formatarTrimestre,
   formatarValorIndicador,
 } from '../utils/dadosEconomia'
 import './Economia.css'
 
 const COR = 'var(--economia-destaque)'
-const ABAS = ['Visão Geral', 'Indicadores', 'Dados', 'Gráficos', 'Relatórios']
+const ABAS = ['Visão Geral', 'Indicadores', 'Municípios', 'Dados', 'Gráficos', 'Relatórios']
 const EIXO = { fill: 'var(--economia-eixo)', fontSize: 12 }
 const TOOLTIP = {
   backgroundColor: 'var(--economia-papel)',
@@ -37,13 +39,32 @@ const TOOLTIP = {
 }
 const SERIE_INICIAL = { dados: [], carregando: true, erro: null }
 const PERIODOS_GRAFICO = [
-  { id: '6m', rotulo: '6 meses', meses: 6, anos: 1 },
-  { id: '1a', rotulo: '1 ano', meses: 12, anos: 1 },
-  { id: '5a', rotulo: '5 anos', meses: 60, anos: 5 },
-  { id: '10a', rotulo: '10 anos', meses: 120, anos: 10 },
-  { id: 'tudo', rotulo: 'Tudo', meses: null, anos: null },
+  { id: '6m', rotulo: '6 meses', meses: 6, trimestres: 2, anos: 1 },
+  { id: '1a', rotulo: '1 ano', meses: 12, trimestres: 4, anos: 1 },
+  { id: '5a', rotulo: '5 anos', meses: 60, trimestres: 20, anos: 5 },
+  { id: '10a', rotulo: '10 anos', meses: 120, trimestres: 40, anos: 10 },
+  { id: 'tudo', rotulo: 'Tudo', meses: null, trimestres: null, anos: null },
 ]
 const PERIODOS_ANUAIS = PERIODOS_GRAFICO.filter((opcao) => opcao.id !== '6m')
+const LOCALIDADES_IPCA = [
+  { id: 'BR', nome: 'Brasil' },
+  { id: 'N7[3501]', nome: 'RM São Paulo (SP)' },
+  { id: 'N7[3301]', nome: 'RM Rio de Janeiro (RJ)' },
+  { id: 'N7[3101]', nome: 'RM Belo Horizonte (MG)' },
+  { id: 'N7[2601]', nome: 'RM Recife (PE)' },
+  { id: 'N7[2301]', nome: 'RM Fortaleza (CE)' },
+  { id: 'N7[1501]', nome: 'RM Belém (PA)' },
+  { id: 'N7[3201]', nome: 'RM Grande Vitória (ES)' },
+  { id: 'N7[4101]', nome: 'RM Curitiba (PR)' },
+  { id: 'N7[4301]', nome: 'RM Porto Alegre (RS)' },
+  { id: 'N6[5300108]', nome: 'Brasília (DF)' },
+  { id: 'N6[2800308]', nome: 'Aracaju (SE)' },
+  { id: 'N6[2111300]', nome: 'São Luís (MA)' },
+  { id: 'N6[5208707]', nome: 'Goiânia (GO)' },
+  { id: 'N6[5002704]', nome: 'Campo Grande (MS)' },
+  { id: 'N6[1200401]', nome: 'Rio Branco (AC)' },
+]
+const CORES_COMPARACAO = ['#2f6f5e', '#4b6b94', '#8b5e83', '#b57b2e', '#5a7d3a']
 
 const intervalo = (serie) => {
   if (serie.length === 0) return ''
@@ -51,14 +72,18 @@ const intervalo = (serie) => {
   return `, ${serie[0].periodo} a ${serie.at(-1).periodo}`
 }
 
-function filtrarPorPeriodoGrafico(dados, periodoId) {
+function filtrarPorPeriodoGrafico(dados, periodoId, frequencia = null) {
   if (!Array.isArray(dados) || dados.length === 0 || periodoId === 'tudo') {
     return dados
   }
 
   const opcao = PERIODOS_GRAFICO.find(({ id }) => id === periodoId)
-  if (!opcao || (!opcao.meses && !opcao.anos)) {
+  if (!opcao || (!opcao.meses && !opcao.anos && !opcao.trimestres)) {
     return dados
+  }
+
+  if (frequencia === 'Trimestral') {
+    return opcao.trimestres ? dados.slice(-opcao.trimestres) : dados
   }
 
   const ultimoPeriodo = String(dados.at(-1).periodo)
@@ -165,6 +190,7 @@ function Grafico({
   subtitulo,
   status,
   resumoAcessivel,
+  controlesExtras,
   opcoesPeriodo = PERIODOS_GRAFICO,
   periodoAtivo,
   aoMudarPeriodo,
@@ -194,6 +220,7 @@ function Grafico({
           </div>
         )}
       </div>
+      {controlesExtras}
       {!status && resumoAcessivel && (
         <p className="economia-sr-only">{resumoAcessivel}</p>
       )}
@@ -215,16 +242,16 @@ function Grafico({
 }
 
 function GraficoPib({ serie }) {
-  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-pib-filtro', 'tudo')
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-pib-ba-filtro', 'tudo')
   const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
   const resumo = resumirSerieAcessivel(dados, {
-    titulo: 'PIB do Brasil',
+    titulo: 'PIB da Bahia',
     formatarValor: formatarMoeda,
   })
 
   return (
     <Grafico
-      titulo="PIB do Brasil (R$ trilhões)"
+      titulo="PIB da Bahia (R$ bilhões)"
       subtitulo={`Valores correntes${intervalo(dados)}`}
       status={statusDe(serie)}
       resumoAcessivel={resumo}
@@ -239,29 +266,43 @@ function GraficoPib({ serie }) {
           tick={EIXO}
           domain={[0, 'auto']}
           allowDecimals={false}
-          tickFormatter={(v) => formatarNumero(v / 1e12, 0)}
+          tickFormatter={(v) => formatarNumero(v / 1e9, 0)}
         />
-        <Tooltip contentStyle={TOOLTIP} cursor={{ fill: 'var(--economia-realce)' }} formatter={(v) => [formatarMoeda(v), 'PIB']} />
+        <Tooltip contentStyle={TOOLTIP} cursor={{ fill: 'var(--economia-realce)' }} formatter={(v) => [formatarMoeda(v), 'PIB da Bahia']} />
         <Bar dataKey="valor" fill={COR} maxBarSize={48} />
       </BarChart>
     </Grafico>
   )
 }
 
-function GraficoPibPerCapita({ serie }) {
-  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-percapita-filtro', 'tudo')
-  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
-  const resumo = resumirSerieAcessivel(dados, {
-    titulo: 'PIB per capita do Brasil',
-    formatarValor: formatarMoeda,
-  })
+function GraficoPibPerCapita({ serie, serieBrasil }) {
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-percapita-ba-filtro', 'tudo')
+  const mapaBrasil = Object.fromEntries(
+    (serieBrasil?.dados ?? []).map(({ periodo, valor }) => [String(periodo), valor])
+  )
+  const dadosBase = serie.dados.map(({ periodo, valor }) => ({
+    periodo,
+    bahia: valor,
+    brasil: mapaBrasil[String(periodo)] ?? null,
+  }))
+  const dados = filtrarPorPeriodoGrafico(dadosBase, periodoAtivo)
+  const resumoBahia = resumirSerieAcessivel(
+    dados.map(({ periodo, bahia }) => ({ periodo, valor: bahia })),
+    { titulo: 'PIB per capita da Bahia', formatarValor: formatarMoeda }
+  )
+  const resumoBrasil = resumirSerieAcessivel(
+    dados
+      .filter(({ brasil }) => brasil != null)
+      .map(({ periodo, brasil }) => ({ periodo, valor: brasil })),
+    { titulo: 'PIB per capita do Brasil', formatarValor: formatarMoeda }
+  )
 
   return (
     <Grafico
-      titulo="PIB per capita do Brasil (R$)"
-      subtitulo={`Valores correntes${intervalo(dados)}`}
+      titulo="PIB per capita: Bahia vs Brasil (R$)"
+      subtitulo={`Valores correntes · estimado para a Bahia${intervalo(dados)}`}
       status={statusDe(serie)}
-      resumoAcessivel={resumo}
+      resumoAcessivel={[resumoBahia, resumoBrasil].filter(Boolean).join(' ')}
       opcoesPeriodo={PERIODOS_ANUAIS}
       periodoAtivo={periodoAtivo}
       aoMudarPeriodo={setPeriodoAtivo}
@@ -270,34 +311,126 @@ function GraficoPibPerCapita({ serie }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} />
         <YAxis tick={EIXO} width={70} domain={['auto', 'auto']} tickFormatter={(v) => formatarNumero(v, 0)} />
-        <Tooltip contentStyle={TOOLTIP} formatter={(v) => [formatarMoeda(v), 'PIB per capita']} />
-        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
+        <Tooltip
+          contentStyle={TOOLTIP}
+          formatter={(v, nome) => [formatarMoeda(v), nome === 'bahia' ? 'Bahia' : 'Brasil']}
+        />
+        <Legend formatter={(valor) => (valor === 'bahia' ? 'Bahia' : 'Brasil')} />
+        <Line type="monotone" dataKey="bahia" name="bahia" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} connectNulls />
+        <Line type="monotone" dataKey="brasil" name="brasil" stroke="var(--economia-eixo)" strokeWidth={2} strokeDasharray="5 4" dot={dados.length <= 24} connectNulls />
       </LineChart>
     </Grafico>
   )
 }
 
 function GraficoIpca({ serie, className }) {
-  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-ipca-filtro', 'tudo')
-  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-ipca-ssa-filtro', 'tudo')
+  const [comparacoes, setComparacoes] = useLocalStorage('eco-ipca-comparacoes', [])
+  const [seriesExtras, setSeriesExtras] = useState({})
+
+  useEffect(() => {
+    let ativo = true
+
+    for (const localidadeId of comparacoes) {
+      if (seriesExtras[localidadeId]) continue
+      buscarSerie(7060, 2265, null, { localidades: localidadeId })
+        .then((dados) => {
+          if (!ativo) return
+          setSeriesExtras((atual) => ({ ...atual, [localidadeId]: dados }))
+        })
+        .catch(() => {
+          if (!ativo) return
+          setSeriesExtras((atual) => ({ ...atual, [localidadeId]: [] }))
+        })
+    }
+
+    return () => {
+      ativo = false
+    }
+  }, [comparacoes, seriesExtras])
+
+  const localidadesAtivas = comparacoes
+    .map((id) => LOCALIDADES_IPCA.find((loc) => loc.id === id))
+    .filter(Boolean)
+
+  const mapasExtras = Object.fromEntries(
+    localidadesAtivas.map((loc) => [
+      loc.id,
+      Object.fromEntries((seriesExtras[loc.id] ?? []).map(({ periodo, valor }) => [periodo, valor])),
+    ])
+  )
+
+  const dadosCombinados = serie.dados.map(({ periodo, valor }) => {
+    const ponto = { periodo, salvador: valor }
+    for (const loc of localidadesAtivas) {
+      ponto[loc.id] = mapasExtras[loc.id]?.[periodo] ?? null
+    }
+    return ponto
+  })
+
+  const dados = filtrarPorPeriodoGrafico(dadosCombinados, periodoAtivo)
   const periodo =
     dados.length > 0
       ? dados.length === 1
         ? ` · ${formatarMesAno(dados[0].periodo)}`
         : ` · ${formatarMesAno(dados[0].periodo)} a ${formatarMesAno(dados.at(-1).periodo)}`
       : ''
-  const resumo = resumirSerieAcessivel(dados, {
-    titulo: 'IPCA acumulado em 12 meses',
-    formatarPeriodo: formatarMesAno,
-    formatarValor: (v) => `${formatarNumero(v)}%`,
-  })
+
+  const resumoSalvador = resumirSerieAcessivel(
+    dados.map(({ periodo: p, salvador }) => ({ periodo: p, valor: salvador })),
+    {
+      titulo: 'IPCA da Região Metropolitana de Salvador acumulado em 12 meses',
+      formatarPeriodo: formatarMesAno,
+      formatarValor: (v) => `${formatarNumero(v)}%`,
+    }
+  )
+
+  const disponiveis = LOCALIDADES_IPCA.filter((loc) => !comparacoes.includes(loc.id))
+
+  const controlesComparacao = (
+    <div className="economia-ipca-comparacoes">
+      <span className="economia-ipca-chip economia-ipca-chip--base">RM Salvador</span>
+      {localidadesAtivas.map((loc, indice) => (
+        <button
+          key={loc.id}
+          type="button"
+          className="economia-ipca-chip"
+          style={{ borderColor: CORES_COMPARACAO[indice % CORES_COMPARACAO.length] }}
+          onClick={() => setComparacoes((atual) => atual.filter((id) => id !== loc.id))}
+          aria-label={`Remover comparação com ${loc.nome}`}
+        >
+          {loc.nome} <span aria-hidden="true">×</span>
+        </button>
+      ))}
+      {disponiveis.length > 0 && (
+        <select
+          className="economia-ipca-select"
+          aria-label="Adicionar localidade para comparar no IPCA"
+          value=""
+          onChange={(event) => {
+            const escolhido = event.target.value
+            if (!escolhido) return
+            setComparacoes((atual) => (atual.includes(escolhido) ? atual : [...atual, escolhido]))
+          }}
+        >
+          <option value="">+ Comparar localidade</option>
+          {disponiveis.map((loc) => (
+            <option key={loc.id} value={loc.id}>
+              {loc.nome}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
 
   return (
     <Grafico
-      titulo="IPCA (%)"
-      subtitulo={`Acumulado em 12 meses${periodo}`}
+      titulo="IPCA – RM Salvador (%)"
+      subtitulo={`Acumulado em 12 meses · Região Metropolitana de Salvador${periodo}`}
       status={statusDe(serie)}
-      resumoAcessivel={resumo}
+      resumoAcessivel={resumoSalvador}
+      controlesExtras={controlesComparacao}
       opcoesPeriodo={PERIODOS_GRAFICO}
       periodoAtivo={periodoAtivo}
       aoMudarPeriodo={setPeriodoAtivo}
@@ -307,32 +440,63 @@ function GraficoIpca({ serie, className }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
         <XAxis dataKey="periodo" tick={EIXO} tickFormatter={formatarMesAno} minTickGap={24} />
         <YAxis tick={EIXO} width={55} tickFormatter={(v) => `${formatarNumero(v, 1)}%`} />
-        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarMesAno} formatter={(v) => [`${formatarNumero(v)}%`, 'IPCA']} />
-        <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
+        <Tooltip
+          contentStyle={TOOLTIP}
+          labelFormatter={formatarMesAno}
+          formatter={(v, nome) => [
+            `${formatarNumero(v)}%`,
+            nome === 'salvador'
+              ? 'RM Salvador'
+              : LOCALIDADES_IPCA.find((loc) => loc.id === nome)?.nome ?? nome,
+          ]}
+        />
+        {localidadesAtivas.length > 0 && (
+          <Legend
+            formatter={(valor) =>
+              valor === 'salvador'
+                ? 'RM Salvador'
+                : LOCALIDADES_IPCA.find((loc) => loc.id === valor)?.nome ?? valor
+            }
+          />
+        )}
+        <Line type="monotone" dataKey="salvador" name="salvador" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} connectNulls />
+        {localidadesAtivas.map((loc, indice) => (
+          <Line
+            key={loc.id}
+            type="monotone"
+            dataKey={loc.id}
+            name={loc.id}
+            stroke={CORES_COMPARACAO[indice % CORES_COMPARACAO.length]}
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={dados.length <= 24}
+            connectNulls
+          />
+        ))}
       </LineChart>
     </Grafico>
   )
 }
 
 function GraficoDesemprego({ serie, className }) {
-  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-desemprego-filtro', 'tudo')
-  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo)
+  const [periodoAtivo, setPeriodoAtivo] = useLocalStorage('eco-grafico-desemprego-ba-filtro', 'tudo')
+  const dados = filtrarPorPeriodoGrafico(serie.dados, periodoAtivo, 'Trimestral')
   const periodo =
     dados.length > 0
       ? dados.length === 1
-        ? ` · ${formatarTrimestreMovel(dados[0].periodo)}`
-        : ` · ${formatarTrimestreMovel(dados[0].periodo)} a ${formatarTrimestreMovel(dados.at(-1).periodo)}`
+        ? ` · ${formatarTrimestre(dados[0].periodo)}`
+        : ` · ${formatarTrimestre(dados[0].periodo)} a ${formatarTrimestre(dados.at(-1).periodo)}`
       : ''
   const resumo = resumirSerieAcessivel(dados, {
-    titulo: 'Taxa de desemprego',
-    formatarPeriodo: formatarTrimestreMovel,
+    titulo: 'Taxa de desemprego da Bahia',
+    formatarPeriodo: formatarTrimestre,
     formatarValor: (v) => `${formatarNumero(v, 1)}%`,
   })
 
   return (
     <Grafico
-      titulo="Taxa de desemprego (%)"
-      subtitulo={`Trimestres móveis · pessoas de 14 anos ou mais na força de trabalho${periodo}`}
+      titulo="Taxa de desemprego – Bahia (%)"
+      subtitulo={`Trimestral · pessoas de 14 anos ou mais na força de trabalho${periodo}`}
       status={statusDe(serie)}
       resumoAcessivel={resumo}
       opcoesPeriodo={PERIODOS_GRAFICO}
@@ -342,9 +506,9 @@ function GraficoDesemprego({ serie, className }) {
     >
       <LineChart data={dados}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--economia-grade)" vertical={false} />
-        <XAxis dataKey="periodo" tick={EIXO} tickFormatter={formatarTrimestreMovel} minTickGap={24} />
+        <XAxis dataKey="periodo" tick={EIXO} tickFormatter={formatarTrimestre} minTickGap={24} />
         <YAxis tick={EIXO} width={55} domain={[0, 'auto']} tickFormatter={(v) => `${formatarNumero(v, 1)}%`} />
-        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarTrimestreMovel} formatter={(v) => [`${formatarNumero(v, 1)}%`, 'Taxa de desemprego']} />
+        <Tooltip contentStyle={TOOLTIP} labelFormatter={formatarTrimestre} formatter={(v) => [`${formatarNumero(v, 1)}%`, 'Desemprego (Bahia)']} />
         <Line type="monotone" dataKey="valor" stroke={COR} strokeWidth={2.5} dot={dados.length <= 24} />
       </LineChart>
     </Grafico>
@@ -410,7 +574,7 @@ export default function Economia() {
     return () => window.removeEventListener('message', aoReceberMensagem)
   }, [setTemaEscuro])
 
-  const { pib, perCapita, ipca, desemprego } = series
+  const { pib, perCapita, perCapitaBrasil, ipca, desemprego } = series
   const kpisDestaque = INDICADORES.filter((indicador) => indicador.destaqueKpi)
 
   const linhas = INDICADORES.map((indicador) => {
@@ -531,20 +695,24 @@ export default function Economia() {
 
           {aba === 'Indicadores' && (
             <div className="economia-grade economia-grade--panorama">
-              <GraficoIpca serie={ipca} />
+              <div>
+                <GraficoIpca serie={ipca} />
+                <GraficoDesemprego serie={desemprego} />
+              </div>
               <TabelaIndicadores linhas={linhas} />
-              <GraficoDesemprego serie={desemprego} className="economia-secao--larga" />
             </div>
           )}
 
           {aba === 'Gráficos' && (
             <div className="economia-grade">
               <GraficoPib serie={pib} />
-              <GraficoPibPerCapita serie={perCapita} />
+              <GraficoPibPerCapita serie={perCapita} serieBrasil={perCapitaBrasil} />
               <GraficoIpca serie={ipca} />
               <GraficoDesemprego serie={desemprego} />
             </div>
           )}
+
+          {aba === 'Municípios' && <MunicipiosBahia />}
 
           {aba === 'Dados' && <DadosEconomia series={series} {...series} />}
 
@@ -553,8 +721,7 @@ export default function Economia() {
 
         <footer className="economia-rodape">
           <span>Eco / Dashboard</span>
-          <p>Fonte: Instituto Brasileiro de Geografia e Estatística · IBGE</p>
-          <a href="#economia-aba-0">Voltar às seções <span aria-hidden="true">↑</span></a>
+          <p>Fonte: Instituto Brasileiro de Geografia e Estatística · IBGE (Bahia)</p>
         </footer>
       </div>
     </div>
