@@ -169,7 +169,7 @@ export default function DadosEconomia({ series, ...seriesIndividuais }) {
       <p className="economia-legenda">{indicador.descricao}</p>
 
       <div className="economia-dados-resumo" role="status" aria-live="polite">
-        {status || `${dados.length} de ${serie.dados.length} registros · ${indicador.frequencia} · Brasil`}
+        {status || `${dados.length} de ${serie.dados.length} registros · ${indicador.frequencia} · ${indicador.localidade === 'BR' ? 'Brasil' : indicador.localidade === 'N7[2901]' ? 'RM Salvador' : 'Bahia'}`}
       </div>
 
       {!status && (

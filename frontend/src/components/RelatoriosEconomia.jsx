@@ -94,7 +94,7 @@ export default function RelatoriosEconomia({ series, ...seriesIndividuais }) {
       {status ? <p className="economia-relatorio-status" role="status">{status}</p> : (
         <article className="economia-relatorio-documento" aria-labelledby="relatorio-documento-titulo">
           <header className="economia-relatorio-cabecalho">
-            <div className="economia-relatorio-expediente"><span>Eco / Dashboard</span><span>Brasil · IBGE</span></div>
+            <div className="economia-relatorio-expediente"><span>Eco / Dashboard</span><span>{indicador.localidade === 'BR' ? 'Brasil' : indicador.localidade === 'N7[2901]' ? 'RM Salvador' : 'Bahia'} · IBGE</span></div>
             <p className="economia-sobretitulo">Relatório econômico</p>
             <h3 id="relatorio-documento-titulo">{indicador.nome}</h3>
             <p className="economia-relatorio-periodo">{periodo(relatorio.inicial.periodo)} — {periodo(relatorio.final.periodo)}</p>
