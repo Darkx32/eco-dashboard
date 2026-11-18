@@ -14,6 +14,9 @@
   color-scheme: light;
 }
 
+:root.dark .economia,
+.dark .economia,
+.economia.dark,
 .economia[data-theme='dark'] {
   --economia-papel: #1c201d;
   --economia-tinta: #eeece3;

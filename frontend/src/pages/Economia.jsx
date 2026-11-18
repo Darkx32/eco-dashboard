@@ -381,10 +381,34 @@ function TabelaIndicadores({ linhas }) {
   )
 }
 
+const ORIGENS_HUB = ['https://bahia-hub.vercel.app', 'http://localhost:5173']
+
 export default function Economia() {
   const [temaEscuro, setTemaEscuro] = useLocalStorage('eco-tema-escuro', false)
   const [aba, setAba] = useLocalStorage('eco-aba-ativa', 'Visão Geral')
   const series = useIndicadores(INDICADORES)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', temaEscuro)
+  }, [temaEscuro])
+
+  useEffect(() => {
+    if (document.documentElement.classList.contains('dark')) {
+      setTemaEscuro(true)
+    }
+
+    const aoReceberMensagem = (event) => {
+      if (!ORIGENS_HUB.includes(event.origin)) return
+      if (event.data?.type === 'bahia-hub:theme') {
+        const escuro = event.data.theme === 'dark'
+        document.documentElement.classList.toggle('dark', escuro)
+        setTemaEscuro(escuro)
+      }
+    }
+
+    window.addEventListener('message', aoReceberMensagem)
+    return () => window.removeEventListener('message', aoReceberMensagem)
+  }, [setTemaEscuro])
 
   const { pib, perCapita, ipca, desemprego } = series
   const kpisDestaque = INDICADORES.filter((indicador) => indicador.destaqueKpi)
