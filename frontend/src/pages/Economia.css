@@ -29,6 +29,32 @@
   color-scheme: dark;
 }
 
+.economia[data-palette='bahia-hub'],
+:root.bahia-hub .economia {
+  --economia-papel: #eef2f7;
+  --economia-tinta: #1e293b;
+  --economia-eixo: #64748b;
+  --economia-grade: #cbd5e1;
+  --economia-destaque: #0369a1;
+  --economia-realce: #e2e8f0;
+  --economia-alta: #059669;
+  --economia-baixa: #dc2626;
+  color-scheme: light;
+}
+
+.economia[data-palette='bahia-hub'][data-theme='dark'],
+:root.bahia-hub.dark .economia {
+  --economia-papel: #020617;
+  --economia-tinta: #e2e8f0;
+  --economia-eixo: #94a3b8;
+  --economia-grade: #1e293b;
+  --economia-destaque: #38bdf8;
+  --economia-realce: #0f172a;
+  --economia-alta: #34d399;
+  --economia-baixa: #f87171;
+  color-scheme: dark;
+}
+
 .economia * { box-sizing: border-box; }
 .economia button, .economia a { -webkit-tap-highlight-color: transparent; }
 .economia button { cursor: pointer; font: inherit; }
@@ -208,7 +234,8 @@
 @media print {
   @page { size: A4; margin: 16mm; }
 
-  .economia[data-print='relatorio'] {
+  .economia[data-print='relatorio'],
+  .economia[data-palette='bahia-hub'][data-print='relatorio'] {
     --economia-papel: #fff;
     --economia-tinta: #222;
     --economia-eixo: #555;

@@ -545,34 +545,18 @@ function TabelaIndicadores({ linhas }) {
   )
 }
 
-const ORIGENS_HUB = ['https://bahia-hub.vercel.app', 'http://localhost:5173']
-
-export default function Economia() {
-  const [temaEscuro, setTemaEscuro] = useLocalStorage('eco-tema-escuro', false)
+export default function Economia({ hubTheme = null }) {
+  const [temaEscuroLocal, setTemaEscuroLocal] = useLocalStorage('eco-tema-escuro', false)
   const [aba, setAba] = useLocalStorage('eco-aba-ativa', 'Visão Geral')
   const series = useIndicadores(INDICADORES)
 
+  const emModoHub = hubTheme !== null
+  const temaEscuro = emModoHub ? hubTheme === 'dark' : temaEscuroLocal
+
   useEffect(() => {
+    document.documentElement.classList.toggle('bahia-hub', emModoHub)
     document.documentElement.classList.toggle('dark', temaEscuro)
-  }, [temaEscuro])
-
-  useEffect(() => {
-    if (document.documentElement.classList.contains('dark')) {
-      setTemaEscuro(true)
-    }
-
-    const aoReceberMensagem = (event) => {
-      if (!ORIGENS_HUB.includes(event.origin)) return
-      if (event.data?.type === 'bahia-hub:theme') {
-        const escuro = event.data.theme === 'dark'
-        document.documentElement.classList.toggle('dark', escuro)
-        setTemaEscuro(escuro)
-      }
-    }
-
-    window.addEventListener('message', aoReceberMensagem)
-    return () => window.removeEventListener('message', aoReceberMensagem)
-  }, [setTemaEscuro])
+  }, [emModoHub, temaEscuro])
 
   const { pib, perCapita, perCapitaBrasil, ipca, desemprego } = series
   const kpisDestaque = INDICADORES.filter((indicador) => indicador.destaqueKpi)
@@ -595,6 +579,7 @@ export default function Economia() {
   return (
     <div
       className="economia"
+      data-palette={emModoHub ? 'bahia-hub' : 'padrao'}
       data-theme={temaEscuro ? 'dark' : 'light'}
       data-print={aba === 'Relatórios' ? 'relatorio' : undefined}
     >
@@ -603,22 +588,24 @@ export default function Economia() {
           <div className="economia-expediente">
             <span className="economia-marca">Eco<span aria-hidden="true"> / </span>Dashboard</span>
           </div>
-          <button
-            type="button"
-            aria-label={temaEscuro ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
-            onClick={() => setTemaEscuro((atual) => !atual)}
-            className="economia-tema"
-          >
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              {temaEscuro ? (
-                <>
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
-                </>
-              ) : <path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z" />}
-            </svg>
-            {temaEscuro ? 'Tema claro' : 'Tema escuro'}
-          </button>
+          {!emModoHub && (
+            <button
+              type="button"
+              aria-label={temaEscuro ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
+              onClick={() => setTemaEscuroLocal((atual) => !atual)}
+              className="economia-tema"
+            >
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {temaEscuro ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+                  </>
+                ) : <path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z" />}
+              </svg>
+              {temaEscuro ? 'Tema claro' : 'Tema escuro'}
+            </button>
+          )}
         </header>
 
         <nav className="economia-navegacao" aria-label="Seções de economia">
