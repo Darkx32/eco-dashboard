@@ -1,15 +1,24 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 const Economia = lazy(() => import('./pages/Economia'))
 
-const ORIGENS_PERMITIDAS = ['https://bahia-hub.vercel.app', 'http://localhost:5173']
+const ORIGENS_PERMITIDAS = [
+  'https://bahia-hub.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:4173',
+]
 
 export default function App() {
+  const [hubTheme, setHubTheme] = useState(null)
+
   useEffect(() => {
     const aoReceberMensagem = (event) => {
       if (!ORIGENS_PERMITIDAS.includes(event.origin)) return
       if (event.data?.type === 'bahia-hub:theme') {
-        document.documentElement.classList.toggle('dark', event.data.theme === 'dark')
+        const tema = event.data.theme === 'dark' ? 'dark' : 'light'
+        document.documentElement.classList.add('bahia-hub')
+        document.documentElement.classList.toggle('dark', tema === 'dark')
+        setHubTheme(tema)
       }
     }
 
@@ -19,7 +28,7 @@ export default function App() {
 
   return (
     <Suspense fallback={<div>Carregando...</div>}>
-      <Economia />
+      <Economia hubTheme={hubTheme} />
     </Suspense>
   )
 }
